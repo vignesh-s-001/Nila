@@ -1,26 +1,240 @@
+
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-surface: #fff8f6;
+  --color-surface-dim: #dfd9d7;
+  --color-surface-bright: #fff8f6;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f9f2f0;
+  --color-surface-container: #f3ecea;
+  --color-surface-container-high: #ede7e5;
+  --color-surface-container-highest: #e8e1df;
+  --color-on-surface: #1d1b1a;
+  --color-on-surface-variant: #554246;
+  --color-inverse-surface: #33302f;
+  --color-inverse-on-surface: #f6efed;
+  --color-outline: #887176;
+  --color-outline-variant: #dbc0c5;
+  --color-surface-tint: #a1395e;
+  --color-primary: #9e365c;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #bd4f74;
+  --color-on-primary-container: #fffbff;
+  --color-inverse-primary: #ffb1c6;
+  --color-secondary: #785460;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #ffd1df;
+  --color-on-secondary-container: #7b5763;
+  --color-tertiary: #834a64;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #9f627d;
+  --color-on-tertiary-container: #fffbff;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-primary-fixed: #ffd9e1;
+  --color-primary-fixed-dim: #ffb1c6;
+  --color-on-primary-fixed: #3f001b;
+  --color-on-primary-fixed-variant: #822046;
+  --color-secondary-fixed: #ffd9e4;
+  --color-secondary-fixed-dim: #e8bbc8;
+  --color-on-secondary-fixed: #2d131d;
+  --color-on-secondary-fixed-variant: #5e3d49;
+  --color-tertiary-fixed: #ffd8e6;
+  --color-tertiary-fixed-dim: #fbb2d0;
+  --color-on-tertiary-fixed: #370922;
+  --color-on-tertiary-fixed-variant: #6b354f;
+  --color-background: #fff8f6;
+  --color-on-background: #1d1b1a;
+  --color-surface-variant: #e8e1df;
+
+  /* Backward compatibility for generic classes we might have missed */
+  --color-accent: #9e365c;
+  --color-accent-hover: #bd4f74;
+  --color-danger: #ba1a1a;
+  --color-danger-light: #ffdad6;
+
+  --font-display: 'Epilogue', sans-serif;
+  --font-headline-lg: 'Epilogue', sans-serif;
+  --font-headline-lg-mobile: 'Epilogue', sans-serif;
+  --font-headline-md: 'Epilogue', sans-serif;
+  --font-headline-sm: 'Epilogue', sans-serif;
+  --font-title-md: 'Plus Jakarta Sans', sans-serif;
+  --font-body-lg: 'Plus Jakarta Sans', sans-serif;
+  --font-body-md: 'Plus Jakarta Sans', sans-serif;
+  --font-body-sm: 'Plus Jakarta Sans', sans-serif;
+  --font-label-lg: 'Plus Jakarta Sans', sans-serif;
+  --font-label-md: 'Plus Jakarta Sans', sans-serif;
+  --font-label-sm: 'Plus Jakarta Sans', sans-serif;
+
+  --spacing-space-2xs: 0.25rem;
+  --spacing-space-xs: 0.5rem;
+  --spacing-space-sm: 0.75rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2rem;
+  --spacing-space-2xl: 3rem;
+  --spacing-space-3xl: 4rem;
+  --spacing-gutter-mobile: 1rem;
+  --spacing-gutter-desktop: 1.5rem;
+  --spacing-margin-mobile: 1.25rem;
+  --spacing-margin-tablet: 2rem;
+  --spacing-margin-desktop: auto;
+
+  --radius-sm: 0.5rem;
+  --radius-DEFAULT: 1rem;
+  --radius-md: 1.5rem;
+  --radius-lg: 2rem;
+  --radius-xl: 3rem;
+  --radius-full: 9999px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+  body {
+    overscroll-behavior: none;
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
+    font-family: var(--font-body-md);
+  }
+  main > :first-child {
+    margin-top: 0 !important;
+  }
+  main > :last-child {
+    margin-bottom: 0 !important;
+  }
+  
+  /* Reset some headings since tailwind base might strip */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-headline-lg);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+::-webkit-scrollbar {
+  display: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Leaflet Map fixes ──────────────────────────────────── */
+
+.leaflet-container {
+  border-radius: var(--radius-lg);
+  font-family: var(--font-body-md) !important;
+}
+
+/* ─── Generic Utility Classes to map to our old CSS variables */
+.card {
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px -8px rgba(158, 54, 92, 0.08), 0 4px 12px -2px rgba(158, 54, 92, 0.04);
+}
+
+.ctx-checkbox {
+  appearance: none;
+  width: 19px;
+  height: 19px;
+  border: 1.5px solid var(--color-outline-variant);
+  border-radius: 9999px; /* full pill */
+  background: var(--color-surface-container-lowest);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.ctx-checkbox:hover {
+  border-color: var(--color-primary);
+}
+.ctx-checkbox:checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.ctx-checkbox:checked::after {
+  content: "done";
+  font-family: 'Material Symbols Outlined';
+  color: var(--color-on-primary);
+  font-size: 13px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 72px;
+  background: var(--color-surface-container-low);
+  border-top: 1px solid var(--color-outline-variant);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 50;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  color: var(--color-on-surface-variant);
+}
+
+.nav-item.active {
+  color: var(--color-on-secondary-container);
+  background: var(--color-secondary-container);
+}
+
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(29, 27, 26, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+}
+
+.sheet-panel {
+  width: 100%;
+  background: var(--color-surface-container-lowest);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: 24px 24px calc(24px + env(safe-area-inset-bottom, 0px));
+  max-height: 92dvh;
+  overflow-y: auto;
+  box-shadow: 0 -20px 48px rgba(158, 54, 92, 0.12);
+}
+
+@media (min-width: 768px) {
+  .sheet-panel {
+    border-radius: var(--radius-xl);
+    max-height: 86vh;
+    box-shadow: 0 16px 48px rgba(158, 54, 92, 0.16);
+    padding: 28px;
+  }
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--color-outline-variant);
+  border-radius: 99px;
+  margin: 0 auto 24px;
 }

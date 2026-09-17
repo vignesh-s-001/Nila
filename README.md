@@ -1,36 +1,202 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nila — Mindful Companion
+
+> A location-aware mindful companion that reminds you of the right things at the right place.  
+> Built with **Next.js 16**, **IndexedDB (Dexie)**, **Zustand**, **Leaflet**, and **Web Crypto**.
+
+---
+
+## Features
+
+- 📍 **Geo-fenced Intentions** — alerts when you arrive at or leave a saved place
+- 🔔 **Smart Notifications** — top banner with Stop / Snooze / Reschedule actions
+- 🎵 **Mindful Alert Music** — 20-second Web Audio chime on arrival
+- 🗺️ **Journey & Transit** — plan trips with map-based start/destination picker
+- 🔐 **Authentication** — signup / login with role-based access (admin & user)
+- 🤖 **AI Features** *(optional)* — smart task extraction (requires API key)
+- 🌙 **Dark / Light mode**
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- **Node.js** 18 or later
+- **npm** 9 or later
+
+### 1. Clone and install
+
+```bash
+git clone <repo-url>
+cd context-app
+npm install
+```
+
+### 2. Configure environment
+
+Copy the env template and fill in your values:
+
+```bash
+cp .env.local .env.local
+```
+
+Edit `.env.local`:
+
+```env
+# Optional — enables AI features automatically
+NEXT_PUBLIC_AI_API_KEY=sk-...your-openai-key...
+
+# "openai" or "gemini"
+NEXT_PUBLIC_AI_PROVIDER=openai
+```
+
+> **AI key is optional.** If left blank, you can still enter it manually from  
+> **Settings → Nila AI → API Key**.
+
+### 3. Run development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App will be available at **http://localhost:3000**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> If port 3000 is taken, Next.js will try 3001, 3002, etc.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Build for production
 
-## Learn More
+```bash
+npm run build
+npm start
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Authentication
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Default Admin Account
 
-## Deploy on Vercel
+A default admin account is automatically seeded on first launch:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Field    | Value              |
+|----------|--------------------|
+| Email    | `*****`
+| Password | `*****`
+| Role     | `*****`            |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> ⚠️ **Change the admin password** after first login via the Settings page (coming soon) or by deleting and re-creating the IndexedDB database.
+
+### Roles
+
+| Role    | Capabilities                                           |
+|---------|--------------------------------------------------------|
+| `user`  | Full access to all personal features                   |
+| `admin` | All user capabilities + **Admin Panel** in Settings    |
+
+### Admin Panel (Settings → Admin Panel)
+
+- View all registered users
+- Change user roles (user ↔ admin)
+- Delete user accounts (cannot delete the default admin)
+
+### How Auth Works
+
+Authentication is **100% client-side** using IndexedDB:
+
+- Passwords are hashed with **PBKDF2 + SHA-256** (Web Crypto API) — never stored in plain text
+- Sessions are kept in **`sessionStorage`** — clearing the tab/browser logs out
+- No backend server or JWT tokens needed
+
+---
+
+## Project Structure
+
+```
+context-app/
+├── app/                    # Next.js App Router pages
+│   ├── login/              # Login page
+│   ├── signup/             # Signup page
+│   ├── places/             # Places list + detail
+│   ├── tasks/              # Tasks & intentions
+│   ├── journey/            # Journey & transit
+│   └── settings/           # Settings + Admin Panel
+│
+├── components/
+│   ├── shell/
+│   │   ├── AppShell.tsx    # Main layout (nav, header, user info)
+│   │   ├── AppShellClient.tsx  # Conditionally renders AppShell
+│   │   ├── AuthGuard.tsx   # Route protection & session restore
+│   │   └── Providers.tsx   # Theme + settings loader
+│   ├── notifications/
+│   │   └── TopAlertBanner.tsx  # Alert banner with Stop/Snooze/Reschedule
+│   └── ui/                 # Reusable UI components
+│
+├── core/
+│   ├── db/index.ts         # Dexie (IndexedDB) schema
+│   ├── types/index.ts      # All TypeScript types
+│   └── context/            # Context & rules engine
+│
+├── features/
+│   ├── demo/               # Location simulator (DemoMode)
+│   ├── tasks/              # TaskForm, TaskItem components
+│   └── journey/            # Route map picker
+│
+├── hooks/                  # useLocation, useContextEngine, usePlaces, etc.
+│
+├── services/
+│   ├── auth/
+│   │   └── authService.ts  # Login, signup, session, PBKDF2 hashing
+│   ├── database/           # CRUD for places, tasks, settings
+│   ├── location/           # Geofence service
+│   └── notifications/      # Notification engine, sound service
+│
+├── store/
+│   └── appStore.ts         # Zustand global state (auth, location, alerts)
+│
+├── public/
+│   └── logo.png            # App logo
+│
+└── .env.local              # Environment variables (gitignored)
+```
+
+---
+
+## Environment Variables
+
+| Variable                    | Required | Description                                      |
+|-----------------------------|----------|--------------------------------------------------|
+| `NEXT_PUBLIC_AI_API_KEY`    | No       | OpenAI / Gemini API key — enables AI features    |
+| `NEXT_PUBLIC_AI_PROVIDER`   | No       | `"openai"` or `"gemini"` (default: `"openai"`)  |
+
+---
+
+## Tech Stack
+
+| Layer          | Technology                          |
+|----------------|-------------------------------------|
+| Framework      | Next.js 16 (App Router, Turbopack)  |
+| UI             | Tailwind CSS v4, Material Symbols   |
+| State          | Zustand                             |
+| Database       | Dexie (IndexedDB)                   |
+| Auth           | Web Crypto API (PBKDF2)             |
+| Maps           | Leaflet + OpenStreetMap             |
+| Notifications  | Web Notifications API               |
+| Audio          | Web Audio API                       |
+| Language       | TypeScript                          |
+
+---
+
+## Notification Behavior
+
+| Action       | Result                                                              |
+|--------------|---------------------------------------------------------------------|
+| **Stop**     | Dismiss permanently until next genuine arrival event               |
+| **Snooze**   | Re-alert in 5 minutes regardless of location                        |
+| **Hide (✕)** | Dismiss now; check in 5 min — re-alert only if still at the place  |
+| **Reschedule** | Opens the intention editor to change timing                      |
+
+---
+
+## License
+
+MIT — made with 🌙 for mindful living.

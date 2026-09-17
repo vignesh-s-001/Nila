@@ -1,0 +1,17 @@
+{
+  "name": "Nila — Mindful Companion",
+  "short_name": "Nila",
+  "description": "Remember the right things at the right place. Nila shows you what matters based on where you are.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff8f6",
+  "theme_color": "#fff8f6",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -13,6 +13,7 @@ import { getPlaceColorHex } from "@/core/constants";
 import { useState } from "react";
 import { Moon } from "lucide-react";
 
+//all-pages
 export default function HomePage() {
   const { userContext, settings, currentUser } = useAppStore();
   const { places } = usePlaces();

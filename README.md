@@ -3,17 +3,21 @@
 > A location-aware mindful companion that reminds you of the right things at the right place.  
 > Built with **Next.js 16**, **IndexedDB (Dexie)**, **Zustand**, **Leaflet**, and **Web Crypto**.
 
+📖 **[Read the Full Documentation & Client Guide (DOCS.md)](./DOCS.md)**
+
 ---
 
 ## Features
 
-- 📍 **Geo-fenced Intentions** — alerts when you arrive at or leave a saved place
-- 🔔 **Smart Notifications** — top banner with Stop / Snooze / Reschedule actions
-- 🎵 **Mindful Alert Music** — 20-second Web Audio chime on arrival
-- 🗺️ **Journey & Transit** — plan trips with map-based start/destination picker
-- 🔐 **Authentication** — signup / login with role-based access (admin & user)
-- 🤖 **AI Features** *(optional)* — smart task extraction (requires API key)
-- 🌙 **Dark / Light mode**
+- 🏡 **Sanctuaries (Sacred Spaces)** — intelligent places with geo-fenced arrival & departure triggers (`ENTER` / `EXIT`)
+- 🌸 **Tabbed Dashboard Flow** — single-focus tabs for Active Flow, Upcoming Intentions, and Sanctuaries
+- 🕒 **Live Clock & Dynamic Daily Greetings** — real-time time-of-day companion messages (Morning, Afternoon, Evening, Night)
+- 🌙 **AI Quick Add** — natural language intention parsing powered by Gemini or OpenAI with signature moon icon
+- 🔔 **Smart Ambient Notifications** — top banner with Stop / Snooze / Reschedule actions
+- 🎵 **Mindful Alert Music** — 20-second harmonic Web Audio arrival chime (no jarring buzzers)
+- 🗺️ **Journey & Transit** — map-based transit reflection and route planning
+- 🧪 **Interactive Location Simulator** — test geofence transitions without leaving your desk
+- 🔐 **Privacy-First Authentication** — 100% client-side PBKDF2 hashing, zero cloud location tracking
 
 ---
 

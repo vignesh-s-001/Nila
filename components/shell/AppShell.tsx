@@ -29,6 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/places", label: "My Places", icon: "cottage" },
     { href: "/tasks", label: "Tasks & Rituals", icon: "spa" },
     { href: "/journey", label: "Journey & Transit", icon: "explore" },
+    { href: "/docs", label: "Guide & Docs", icon: "menu_book" },
     { href: "/settings", label: "Settings", icon: "tune" },
   ];
 

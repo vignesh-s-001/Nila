@@ -3,7 +3,8 @@
 > A location-aware mindful companion that reminds you of the right things at the right place.  
 > Built with **Next.js 16**, **IndexedDB (Dexie)**, **Zustand**, **Leaflet**, and **Web Crypto**.
 
-📖 **[Read the Full Documentation & Client Guide (DOCS.md)](./DOCS.md)**
+📖 **[Read the Full Technical Documentation (DOCS.md)](./DOCS.md)**  
+🌸 **[Read the Client & User Onboarding Guide (USER_GUIDE.md)](./USER_GUIDE.md)**
 
 ---
 

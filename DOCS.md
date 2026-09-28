@@ -3,6 +3,8 @@
 > **"Holding space for your day, wherever you go."**  
 > Nila is a privacy-first, location-aware mindful companion that connects your physical environment with your daily intentions. Instead of pressuring users with rigid deadlines and intrusive alarms, Nila uses **Sanctuaries**, **Mindful Rhythms**, and **Contextual Intelligence** to help you be present where your feet are.
 
+🌸 **Looking for the client onboarding & user manual? [Read the Client & User Guide (USER_GUIDE.md)](./USER_GUIDE.md)**
+
 ---
 
 ## Table of Contents

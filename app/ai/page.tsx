@@ -270,7 +270,37 @@ export default function AIPage() {
                   : "bg-surface-container-low text-on-surface border border-outline-variant/30 rounded-tl-sm"
               }`}
             >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.role === "assistant" ? (
+                <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-strong:font-bold prose-strong:text-on-surface">
+                  {msg.content.split("\n").map((line, i) => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return <br key={i} />;
+
+                    // Bullet points
+                    if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+                      const text = trimmed.slice(2);
+                      return (
+                        <div key={i} className="flex gap-1.5 my-0.5">
+                          <span className="text-primary mt-1 flex-shrink-0">•</span>
+                          <span dangerouslySetInnerHTML={{ __html: text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>") }} />
+                        </div>
+                      );
+                    }
+
+                    // Headings (##)
+                    if (trimmed.startsWith("## ")) {
+                      return <p key={i} className="font-bold text-base mt-2 mb-0.5" dangerouslySetInnerHTML={{ __html: trimmed.slice(3).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />;
+                    }
+
+                    // Regular paragraph with inline bold/italic
+                    return (
+                      <p key={i} className="my-0.5" dangerouslySetInnerHTML={{ __html: trimmed.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>") }} />
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
               <p className={`text-[10px] mt-1 ${msg.role === "user" ? "text-on-primary/60 text-right" : "text-secondary/60"}`}>
                 {new Date(msg.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
               </p>

@@ -195,11 +195,11 @@ export default function AIPage() {
               {/* Message */}
               <div className="flex flex-col gap-2 text-center sm:text-left pr-4">
                 <p className="font-bold text-base text-on-surface">
-                  You&apos;ve used all {AI_PROMPT_LIMIT} free chats 🌙
+                  You&apos;ve used all {AI_PROMPT_LIMIT} chats for today 🌙
                 </p>
                 <p className="text-sm text-secondary leading-relaxed">
-                  Nila&apos;s AI is a thoughtful companion — and thoughtful things take
-                  careful curation. Upgrade to keep chatting endlessly.
+                  Your daily limit resets at midnight. Want unlimited access?
+                  Contact admin to upgrade your account.
                 </p>
                 <div className="mt-2">
                   <a

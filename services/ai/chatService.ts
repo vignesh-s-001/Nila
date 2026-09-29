@@ -23,13 +23,18 @@ function rowToMessage(row: Record<string, unknown>): ChatMessage {
   };
 }
 
-// ─── Usage tracking ────────────────────────────────────────
+// ─── Usage tracking (per-day, resets at midnight) ──────────
+
+function todayDate(): string {
+  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
 
 export async function getPromptCount(userId: string): Promise<number> {
   const { data } = await supabase
     .from("ai_usage")
     .select("prompt_count")
     .eq("user_id", userId)
+    .eq("usage_date", todayDate())
     .maybeSingle();
 
   return (data?.prompt_count as number) ?? 0;
@@ -38,12 +43,18 @@ export async function getPromptCount(userId: string): Promise<number> {
 export async function incrementPromptCount(userId: string): Promise<number> {
   const current = await getPromptCount(userId);
   const next = current + 1;
+  const today = todayDate();
 
   await supabase
     .from("ai_usage")
     .upsert(
-      { user_id: userId, prompt_count: next, updated_at: new Date().toISOString() },
-      { onConflict: "user_id" }
+      {
+        user_id: userId,
+        usage_date: today,
+        prompt_count: next,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,usage_date" }
     );
 
   return next;
@@ -109,7 +120,7 @@ async function callGemini(
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemInstruction }] },
         contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
       }),
     }
   );

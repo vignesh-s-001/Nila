@@ -27,7 +27,10 @@ export default function AIPage() {
   const [hideBanner, setHideBanner] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
   const [resolvedApiKey, setResolvedApiKey] = useState<string | null>(null);
+  const [pastedImages, setPastedImages] = useState<{ base64: string; mimeType: string; preview: string }[]>([]);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userId = currentUser?.id ?? "";
   const isAdmin = currentUser?.role === "admin";
@@ -62,16 +65,25 @@ export default function AIPage() {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || loading || (limitReached && !isAdmin) || !userId) return;
+    if ((!input.trim() && pastedImages.length === 0) || loading || (limitReached && !isAdmin) || !userId) return;
     if (!resolvedApiKey) return;
 
     const userText = input.trim();
+    const imagesSnapshot = [...pastedImages];
     setInput("");
+    setPastedImages([]);
     setLoading(true);
+
+    // Build display text for saved message
+    let displayPrefix = "";
+    if (imagesSnapshot.length > 0) {
+      displayPrefix = imagesSnapshot.length === 1 ? "📷 Image" : `📷 ${imagesSnapshot.length} Images`;
+    }
+    const displayText = [displayPrefix, userText].filter(Boolean).join(" - ");
 
     try {
       // Optimistic user message
-      const userMsg = await saveMessage(userId, "user", userText);
+      const userMsg = await saveMessage(userId, "user", displayText);
       setMessages((prev) => [...prev, userMsg]);
 
       // Increment usage
@@ -79,8 +91,13 @@ export default function AIPage() {
       setPromptCount(newCount);
       if (newCount >= AI_PROMPT_LIMIT && !isAdmin) setLimitReached(true);
 
-      // Call Gemini
-      const reply = await sendChatMessage(userText, messages, resolvedApiKey);
+      // Call Gemini (with optional images)
+      const reply = await sendChatMessage(
+        userText,
+        messages,
+        resolvedApiKey,
+        imagesSnapshot
+      );
       const assistantMsg = await saveMessage(userId, "assistant", reply);
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
@@ -109,6 +126,63 @@ export default function AIPage() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // ─── Image helpers ─────────────────────────────────────────
+
+  const processImageFile = (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      if (!dataUrl) return;
+      const base64 = dataUrl.split(",")[1];
+      
+      setPastedImages((current) => {
+        // Prevent duplicate if the exact same image is already attached
+        if (current.some((img) => img.base64 === base64)) {
+          return current;
+        }
+        if (current.length >= 10) {
+          toast.error("You can only attach up to 10 images at once");
+          return current;
+        }
+        return [...current, { base64, mimeType: file.type, preview: dataUrl }];
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    // If files are directly in clipboard (e.g. copied files)
+    const files = e.clipboardData.files;
+    if (files && files.length > 0) {
+      const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+      if (imageFiles.length > 0) {
+        imageFiles.forEach((file) => processImageFile(file));
+        e.preventDefault();
+        return;
+      }
+    }
+
+    // Fallback for screenshot / snippet paste from items (take only the first representation)
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        const file = items[i].getAsFile();
+        if (file) {
+          processImageFile(file);
+          e.preventDefault();
+          break;
+        }
+      }
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    Array.from(e.dataTransfer.files).forEach((file) => processImageFile(file));
   };
 
   if (initLoading) {
@@ -328,18 +402,97 @@ export default function AIPage() {
 
       {/* ── Input Bar ── */}
       {!limitReached && (
-        <div className="pt-3 border-t border-outline-variant/20">
+        <div
+          className="pt-3 border-t border-outline-variant/20"
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+        >
           {!resolvedApiKey && (
             <p className="text-xs text-secondary mb-2 text-center">
               ⚠️ No AI API key configured. Add <code>NEXT_PUBLIC_AI_API_KEY</code> in Settings.
             </p>
           )}
+
+          {/* Image preview — square boxes */}
+          {pastedImages.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {pastedImages.map((img, idx) => (
+                <div key={idx} className="relative inline-flex">
+                  <button
+                    onClick={() => setLightboxImage(img.preview)}
+                    className="w-20 h-20 rounded border border-outline-variant/60 overflow-hidden shadow-sm hover:ring-2 hover:ring-primary/40 transition-all flex-shrink-0"
+                    title="Click to view full image"
+                  >
+                    <img
+                      src={img.preview}
+                      alt={`Attached image ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                  <button
+                    onClick={() => setPastedImages((prev) => prev.filter((_, i) => i !== idx))}
+                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-error text-on-error flex items-center justify-center shadow-sm hover:opacity-90"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">close</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Lightbox */}
+          {lightboxImage && (
+            <div
+              className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => setLightboxImage(null)}
+            >
+              <div className="relative max-w-3xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                <img
+                  src={lightboxImage}
+                  alt="Full image"
+                  className="max-w-full max-h-[85vh] rounded-lg shadow-2xl object-contain"
+                />
+                <button
+                  onClick={() => setLightboxImage(null)}
+                  className="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              Array.from(e.target.files || []).forEach((f) => processImageFile(f));
+              e.target.value = "";
+            }}
+          />
+
           <div className="flex items-end gap-2">
+            {/* Image attach button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || !resolvedApiKey}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-secondary hover:bg-surface-container border border-outline-variant/40 transition-colors disabled:opacity-40 flex-shrink-0"
+              title="Attach or paste an image"
+            >
+              <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+            </button>
+
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask Nila anything…"
+              onPaste={handlePaste}
+              placeholder={pastedImages.length > 0 ? "Add a caption or just send..." : "Ask Nila anything… or paste an image"}
               rows={1}
               disabled={loading || !resolvedApiKey}
               className="flex-1 resize-none rounded-2xl px-4 py-3 bg-surface-container-low border border-outline-variant text-on-surface text-sm placeholder:text-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 leading-relaxed max-h-32 overflow-y-auto"
@@ -347,7 +500,7 @@ export default function AIPage() {
             />
             <button
               onClick={handleSend}
-              disabled={loading || !input.trim() || !resolvedApiKey}
+              disabled={loading || (!input.trim() && pastedImages.length === 0) || !resolvedApiKey}
               className="w-11 h-11 rounded-full bg-primary text-on-primary flex items-center justify-center shadow hover:opacity-90 transition-all active:scale-[0.95] disabled:opacity-40 flex-shrink-0"
             >
               {loading ? (
@@ -358,7 +511,7 @@ export default function AIPage() {
             </button>
           </div>
           <p className="text-[10px] text-secondary/50 text-center mt-1.5">
-            {remaining > 0 ? `${remaining} of ${AI_PROMPT_LIMIT} free messages remaining • Enter to send` : ""}
+            {remaining > 0 ? `${remaining} of ${AI_PROMPT_LIMIT} messages remaining today • Paste or drag images` : ""}
           </p>
         </div>
       )}

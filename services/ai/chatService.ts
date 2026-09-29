@@ -129,19 +129,31 @@ async function callGemini(
 export async function sendChatMessage(
   userMessage: string,
   history: ChatMessage[],
-  apiKey: string
+  apiKey: string,
+  images?: { base64: string; mimeType: string }[]
 ): Promise<string> {
   const systemInstruction = `You are Nila 🌙, a warm, mindful AI companion built into the Nila app.
 Your role is to help users reflect, plan their day, set intentions, and feel grounded.
 You speak gently, supportively, and concisely — like a caring friend, not a robotic assistant.
 Keep responses focused and mindful. Use soft, encouraging language.`;
 
+  // Build the user parts — include images if provided
+  const userParts: object[] = [];
+  if (images && images.length > 0) {
+    images.forEach((img) => {
+      userParts.push({ inline_data: { mime_type: img.mimeType, data: img.base64 } });
+    });
+  }
+  if (userMessage.trim()) {
+    userParts.push({ text: userMessage });
+  }
+
   const contents = [
     ...history.map((m) => ({
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.content }],
     })),
-    { role: "user", parts: [{ text: userMessage }] },
+    { role: "user", parts: userParts },
   ];
 
   let lastError = "";

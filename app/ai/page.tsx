@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import toast from "react-hot-toast";
 import { useAppStore } from "@/store/appStore";
 import {
   getChatHistory,

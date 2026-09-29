@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { getDB } from "@/core/db";
+import { useState, useCallback, useEffect } from "react";
 import {
+  getTasks,
+  getTasksByPlace,
   createTask,
   updateTask,
   completeTask,
@@ -15,25 +15,28 @@ import type { Task } from "@/core/types";
 import toast from "react-hot-toast";
 
 export function useTasks(placeId?: string) {
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const tasks: Task[] = useLiveQuery(
-    () => {
-      const db = getDB();
-      if (placeId) {
-        return db.tasks.where("placeId").equals(placeId).sortBy("createdAt");
-      }
-      return db.tasks.orderBy("createdAt").toArray();
-    },
-    [placeId],
-    []
-  ) ?? [];
+  const refresh = useCallback(async () => {
+    try {
+      const data = placeId ? await getTasksByPlace(placeId) : await getTasks();
+      setTasks(data);
+    } catch (err) {
+      console.error("useTasks refresh error:", err);
+    }
+  }, [placeId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const addTask = useCallback(async (input: CreateTaskInput): Promise<Task | null> => {
     setLoading(true);
     try {
       const task = await createTask(input);
       toast.success("Task added");
+      await refresh();
       return task;
     } catch {
       toast.error("Failed to add task");
@@ -41,19 +44,20 @@ export function useTasks(placeId?: string) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refresh]);
 
   const editTask = useCallback(
     async (id: string, updates: Partial<Omit<Task, "id" | "createdAt">>): Promise<boolean> => {
       try {
         await updateTask(id, updates);
+        await refresh();
         return true;
       } catch {
         toast.error("Failed to update task");
         return false;
       }
     },
-    []
+    [refresh]
   );
 
   const toggleTask = useCallback(async (task: Task): Promise<void> => {
@@ -63,22 +67,24 @@ export function useTasks(placeId?: string) {
       } else {
         await completeTask(task.id);
       }
+      await refresh();
     } catch {
       toast.error("Failed to update task");
     }
-  }, []);
+  }, [refresh]);
 
   const removeTask = useCallback(async (id: string): Promise<void> => {
     try {
       await deleteTask(id);
       toast.success("Task deleted");
+      await refresh();
     } catch {
       toast.error("Failed to delete task");
     }
-  }, []);
+  }, [refresh]);
 
   const incompleteTasks = tasks.filter((t) => !t.completed);
   const completedTasks  = tasks.filter((t) => t.completed);
 
-  return { tasks, incompleteTasks, completedTasks, loading, addTask, editTask, toggleTask, removeTask };
+  return { tasks, incompleteTasks, completedTasks, loading, addTask, editTask, toggleTask, removeTask, refresh };
 }

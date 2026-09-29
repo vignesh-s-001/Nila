@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useLiveQuery } from "dexie-react-hooks";
-import { getDB } from "@/core/db";
+import { getPlace } from "@/services/database/places";
 import { useTasks } from "@/hooks/useTasks";
 import { useNotes } from "@/hooks/useNotes";
 import { usePlaces } from "@/hooks/usePlaces";
@@ -26,10 +25,10 @@ export default function PlaceDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const router  = useRouter();
 
-  const place = useLiveQuery(
-    () => (typeof window !== "undefined" ? getDB().places.get(id) : undefined),
-    [id]
-  );
+  const [place, setPlace] = useState<Awaited<ReturnType<typeof getPlace>>>(undefined);
+  useEffect(() => {
+    getPlace(id).then(setPlace);
+  }, [id]);
   const { tasks, toggleTask, removeTask, addTask, editTask } = useTasks(id);
   const { notes, addNote, editNote, removeNote }   = useNotes(id);
   const { checklists, allItems, addList, addItem, toggleItem, removeItem, resetList, removeList } = useChecklists(id);
@@ -47,6 +46,7 @@ export default function PlaceDetailPage({ params }: { params: Promise<{ id: stri
   const [newChecklistName, setNewChecklistName] = useState("");
   const [addingChecklist, setAddingChecklist]   = useState(false);
   const [showDelete, setShowDelete]     = useState(false);
+  const [showLocationCard, setShowLocationCard] = useState(true);
 
   if (!place) {
     return (
@@ -115,10 +115,20 @@ export default function PlaceDetailPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* Hero bar */}
+        {showLocationCard && (
         <div
-          className="rounded-2xl p-space-lg flex flex-col sm:flex-row sm:items-center justify-between gap-space-md shadow-sm"
+          className="relative rounded-2xl p-space-lg flex flex-col sm:flex-row sm:items-center justify-between gap-space-md shadow-sm"
           style={{ background: `${colorHex}15`, borderLeft: `6px solid ${colorHex}` }}
         >
+          {/* Close button */}
+          <button
+            onClick={() => setShowLocationCard(false)}
+            className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full text-secondary hover:bg-black/10 transition-colors"
+            title="Dismiss"
+          >
+            <span className="material-symbols-outlined text-[16px]">close</span>
+          </button>
+
           <div className="flex flex-col gap-1">
             <p className="font-label-sm text-label-sm uppercase tracking-wider font-semibold" style={{ color: colorHex }}>
               Location Details
@@ -175,6 +185,7 @@ export default function PlaceDetailPage({ params }: { params: Promise<{ id: stri
             Test Arrival Alert
           </button>
         </div>
+        )}
 
         {/* Tabs */}
         <div className="flex bg-surface-container-low rounded-full p-1 gap-1 mx-1">

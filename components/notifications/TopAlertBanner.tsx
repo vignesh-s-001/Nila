@@ -114,14 +114,14 @@ export function TopAlertBanner() {
 
       const { useAppStore: store } = await import("@/store/appStore");
       const { isInsideGeofence } = await import("@/services/location/geofenceService");
-      const db = await import("@/core/db").then((m) => m.getDB());
+      const { getPlace } = await import("@/services/database/places");
 
       const state = store.getState();
 
       // Don't re-alert if another alert is already showing
       if (state.activeAlert) return;
 
-      const place = alertCopy.placeId ? await db.places.get(alertCopy.placeId) : null;
+      const place = alertCopy.placeId ? await getPlace(alertCopy.placeId) : null;
       if (!place) return;
 
       const coords = state.coords;

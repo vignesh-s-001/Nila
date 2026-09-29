@@ -1,7 +1,7 @@
 /**
  * authService.ts
  *
- * Client-side authentication using IndexedDB (Dexie).
+ * Custom authentication backed by Supabase (users table).
  * Passwords are hashed with PBKDF2 (Web Crypto API) — no plain text ever stored.
  *
  * Default admin credentials (seeded on first run):
@@ -9,7 +9,7 @@
  *   Password : Nila@Admin2024
  */
 
-import { getDB } from "@/core/db";
+import { supabase } from "@/lib/supabase";
 import type { AppUser, AuthUser, UserRole } from "@/core/types";
 import { v4 as uuid } from "uuid";
 
@@ -43,12 +43,7 @@ async function hashPassword(password: string): Promise<string> {
     ["deriveBits"]
   );
   const derived = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt,
-      iterations: PBKDF2_ITERATIONS,
-    },
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: PBKDF2_ITERATIONS },
     keyMaterial,
     256
   );
@@ -68,16 +63,25 @@ async function verifyPassword(password: string, stored: string): Promise<boolean
     ["deriveBits"]
   );
   const derived = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt,
-      iterations: PBKDF2_ITERATIONS,
-    },
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: PBKDF2_ITERATIONS },
     keyMaterial,
     256
   );
   return bufToHex(derived) === hashHex;
+}
+
+// ─── Helpers ───────────────────────────────────────────────
+
+function rowToAppUser(row: Record<string, unknown>): AppUser {
+  return {
+    id:           row.id as string,
+    name:         row.name as string,
+    email:        row.email as string,
+    passwordHash: row.password_hash as string,
+    role:         row.role as UserRole,
+    createdAt:    row.created_at as string,
+    updatedAt:    row.updated_at as string,
+  };
 }
 
 // ─── Seed admin ────────────────────────────────────────────
@@ -90,21 +94,27 @@ let adminSeeded = false;
 
 export async function ensureAdminSeeded(): Promise<void> {
   if (adminSeeded) return;
-  const db = getDB();
-  const existing = await db.users.where("email").equals(ADMIN_EMAIL).first();
+
+  const { data: existing } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", ADMIN_EMAIL)
+    .maybeSingle();
+
   if (!existing) {
     const hash = await hashPassword(ADMIN_PASSWORD);
     const now = new Date().toISOString();
-    await db.users.add({
-      id: uuid(),
-      name: ADMIN_NAME,
-      email: ADMIN_EMAIL,
-      passwordHash: hash,
-      role: "admin",
-      createdAt: now,
-      updatedAt: now,
+    const { error } = await supabase.from("users").insert({
+      id:            uuid(),
+      name:          ADMIN_NAME,
+      email:         ADMIN_EMAIL,
+      password_hash: hash,
+      role:          "admin",
+      created_at:    now,
+      updated_at:    now,
     });
-    console.log("[Auth] Admin user seeded.");
+    if (error) console.error("[Auth] Failed to seed admin:", error.message);
+    else console.log("[Auth] Admin user seeded.");
   }
   adminSeeded = true;
 }
@@ -118,73 +128,85 @@ export interface SignUpInput {
 }
 
 export async function signUp(input: SignUpInput): Promise<AuthUser> {
-  const db = getDB();
   const normalizedEmail = input.email.trim().toLowerCase();
 
-  const existing = await db.users.where("email").equals(normalizedEmail).first();
-  if (existing) {
-    throw new Error("An account with this email already exists.");
-  }
+  const { data: existing } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
 
-  if (input.password.length < 6) {
-    throw new Error("Password must be at least 6 characters.");
-  }
+  if (existing) throw new Error("An account with this email already exists.");
+  if (input.password.length < 6) throw new Error("Password must be at least 6 characters.");
 
   const hash = await hashPassword(input.password);
   const now = new Date().toISOString();
+  const id = uuid();
 
-  const newUser: AppUser = {
-    id: uuid(),
-    name: input.name.trim(),
-    email: normalizedEmail,
-    passwordHash: hash,
-    role: "user",
-    createdAt: now,
-    updatedAt: now,
-  };
+  const { data, error } = await supabase
+    .from("users")
+    .insert({
+      id,
+      name:          input.name.trim(),
+      email:         normalizedEmail,
+      password_hash: hash,
+      role:          "user",
+      created_at:    now,
+      updated_at:    now,
+    })
+    .select()
+    .single();
 
-  await db.users.add(newUser);
-
-  return toAuthUser(newUser);
+  if (error) throw new Error(error.message);
+  return toAuthUser(rowToAppUser(data));
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {
   await ensureAdminSeeded();
-  const db = getDB();
   const normalizedEmail = email.trim().toLowerCase();
 
-  const user = await db.users.where("email").equals(normalizedEmail).first();
-  if (!user) {
-    throw new Error("Invalid email or password.");
-  }
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
 
-  const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) {
-    throw new Error("Invalid email or password.");
-  }
+  if (error) throw new Error(error.message);
+  if (!user) throw new Error("Invalid email or password.");
 
-  return toAuthUser(user);
+  const appUser = rowToAppUser(user);
+  const valid = await verifyPassword(password, appUser.passwordHash);
+  if (!valid) throw new Error("Invalid email or password.");
+
+  return toAuthUser(appUser);
 }
 
 export async function getAllUsers(): Promise<AuthUser[]> {
-  const db = getDB();
-  const users = await db.users.toArray();
-  return users.map(toAuthUser);
+  const { data, error } = await supabase.from("users").select("*");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => toAuthUser(rowToAppUser(row)));
 }
 
 export async function changeUserRole(userId: string, role: UserRole): Promise<void> {
-  const db = getDB();
-  await db.users.update(userId, { role, updatedAt: new Date().toISOString() });
+  const { error } = await supabase
+    .from("users")
+    .update({ role, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteUser(userId: string): Promise<void> {
-  const db = getDB();
-  // Cannot delete the admin
-  const user = await db.users.get(userId);
-  if (user?.email === ADMIN_EMAIL) {
-    throw new Error("Cannot delete the default admin account.");
-  }
-  await db.users.delete(userId);
+  const { data: user, error: fetchErr } = await supabase
+    .from("users")
+    .select("email")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (fetchErr) throw new Error(fetchErr.message);
+  if (user?.email === ADMIN_EMAIL) throw new Error("Cannot delete the default admin account.");
+
+  const { error } = await supabase.from("users").delete().eq("id", userId);
+  if (error) throw new Error(error.message);
 }
 
 // ─── Session helpers ───────────────────────────────────────
@@ -192,12 +214,12 @@ export async function deleteUser(userId: string): Promise<void> {
 const SESSION_KEY = "nila_auth_user";
 
 export function saveSession(user: AuthUser): void {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
 }
 
 export function loadSession(): AuthUser | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as AuthUser;
   } catch {
@@ -206,7 +228,7 @@ export function loadSession(): AuthUser | null {
 }
 
 export function clearSession(): void {
-  sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_KEY);
 }
 
 // ─── Internal helpers ──────────────────────────────────────

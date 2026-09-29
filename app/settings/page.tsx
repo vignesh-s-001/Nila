@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
 import { Toggle } from "@/components/ui/Toggle";
 import { useAppStore } from "@/store/appStore";
 import { setSetting } from "@/services/database/settings";
@@ -219,28 +218,6 @@ export default function SettingsPage() {
 
         <div className="flex flex-col gap-space-xl">
           
-          {/* Documentation & Knowledge Base Banner */}
-          <Link href="/docs">
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-pink-50/90 via-white to-rose-50/70 border border-pink-200/70 rounded-none shadow-2xs hover:shadow-xs hover:border-primary/50 transition-all flex items-center justify-between group cursor-pointer">
-              <div className="flex items-center gap-3">
-                <span className="w-10 h-10 rounded-none bg-white flex items-center justify-center text-xl shadow-2xs border border-pink-100 flex-shrink-0">
-                  📖
-                </span>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-on-surface group-hover:text-primary transition-colors">
-                    Nila Guide & Documentation
-                  </span>
-                  <span className="text-xs text-secondary">
-                    Explore Sanctuaries, Intentions, arrival chimes, and client presentation guides.
-                  </span>
-                </div>
-              </div>
-              <span className="text-primary font-bold text-xs sm:text-sm group-hover:translate-x-1 transition-transform flex-shrink-0 ml-2">
-                Open Guide →
-              </span>
-            </div>
-          </Link>
-
           {/* Appearance Section */}
           <section className="flex flex-col gap-space-sm">
             <h2 className="font-label-md text-label-md uppercase tracking-wider text-secondary font-bold flex items-center gap-space-xs">

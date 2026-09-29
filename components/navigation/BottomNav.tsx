@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/places",   label: "Places",   icon: "cottage" },
   { href: "/tasks",    label: "Tasks",    icon: "spa" },
   { href: "/journey",  label: "Journey",  icon: "explore" },
+  { href: "/ai",       label: "Nila AI",  icon: "auto_awesome" },
   { href: "/settings", label: "Settings", icon: "tune" },
 ];
 

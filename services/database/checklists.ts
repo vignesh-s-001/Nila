@@ -1,6 +1,31 @@
+import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
-import { getDB } from "@/core/db";
 import type { Checklist, ChecklistItem } from "@/core/types";
+
+// ─── helpers ───────────────────────────────────────────────
+
+function rowToChecklist(row: Record<string, unknown>): Checklist {
+  return {
+    id:        row.id as string,
+    placeId:   row.place_id as string | undefined,
+    journeyId: row.journey_id as string | undefined,
+    name:      row.name as string,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function rowToChecklistItem(row: Record<string, unknown>): ChecklistItem {
+  return {
+    id:          row.id as string,
+    checklistId: row.checklist_id as string,
+    text:        row.text as string,
+    completed:   row.completed as boolean,
+    order:       row.order as number,
+    createdAt:   row.created_at as string | undefined,
+    updatedAt:   row.updated_at as string | undefined,
+  };
+}
 
 // ─── Checklist CRUD ────────────────────────────────────────
 
@@ -9,47 +34,75 @@ export async function createChecklist(input: {
   placeId?: string;
   journeyId?: string;
 }): Promise<Checklist> {
-  const db = getDB();
   const now = new Date().toISOString();
-  const checklist: Checklist = {
-    id: uuidv4(),
-    name: input.name,
-    placeId: input.placeId,
-    journeyId: input.journeyId,
-    createdAt: now,
-    updatedAt: now,
-  };
-  await db.checklists.add(checklist);
-  return checklist;
+  const id = uuidv4();
+
+  const { data, error } = await supabase
+    .from("checklists")
+    .insert({
+      id,
+      place_id:   input.placeId ?? null,
+      journey_id: input.journeyId ?? null,
+      name:       input.name,
+      created_at: now,
+      updated_at: now,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return rowToChecklist(data);
 }
 
 export async function getChecklists(): Promise<Checklist[]> {
-  const db = getDB();
-  return db.checklists.orderBy("createdAt").toArray();
+  const { data, error } = await supabase
+    .from("checklists")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(rowToChecklist);
 }
 
 export async function getChecklistsByPlace(placeId: string): Promise<Checklist[]> {
-  const db = getDB();
-  return db.checklists.where("placeId").equals(placeId).sortBy("createdAt");
+  const { data, error } = await supabase
+    .from("checklists")
+    .select("*")
+    .eq("place_id", placeId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(rowToChecklist);
 }
 
 export async function getChecklist(id: string): Promise<Checklist | undefined> {
-  const db = getDB();
-  return db.checklists.get(id);
+  const { data, error } = await supabase
+    .from("checklists")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data ? rowToChecklist(data) : undefined;
 }
 
 export async function updateChecklist(
   id: string,
   updates: Partial<Omit<Checklist, "id" | "createdAt">>
 ): Promise<void> {
-  const db = getDB();
-  await db.checklists.update(id, { ...updates, updatedAt: new Date().toISOString() });
+  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.name      !== undefined) payload.name       = updates.name;
+  if (updates.placeId   !== undefined) payload.place_id   = updates.placeId;
+  if (updates.journeyId !== undefined) payload.journey_id = updates.journeyId;
+
+  const { error } = await supabase.from("checklists").update(payload).eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteChecklist(id: string): Promise<void> {
-  const db = getDB();
-  await db.checklists.delete(id);
-  await db.checklistItems.where("checklistId").equals(id).delete();
+  // Items cascade via FK; delete parent first
+  const { error } = await supabase.from("checklists").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 // ─── Checklist Items CRUD ──────────────────────────────────
@@ -59,38 +112,66 @@ export async function addChecklistItem(input: {
   text: string;
   order: number;
 }): Promise<ChecklistItem> {
-  const db = getDB();
-  const item: ChecklistItem = {
-    id: uuidv4(),
-    checklistId: input.checklistId,
-    text: input.text,
-    completed: false,
-    order: input.order,
-  };
-  await db.checklistItems.add(item);
-  return item;
+  const now = new Date().toISOString();
+  const id = uuidv4();
+
+  const { data, error } = await supabase
+    .from("checklist_items")
+    .insert({
+      id,
+      checklist_id: input.checklistId,
+      text:         input.text,
+      completed:    false,
+      order:        input.order,
+      created_at:   now,
+      updated_at:   now,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return rowToChecklistItem(data);
 }
 
 export async function getChecklistItems(checklistId: string): Promise<ChecklistItem[]> {
-  const db = getDB();
-  return db.checklistItems.where("checklistId").equals(checklistId).sortBy("order");
+  const { data, error } = await supabase
+    .from("checklist_items")
+    .select("*")
+    .eq("checklist_id", checklistId)
+    .order("order", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(rowToChecklistItem);
 }
 
 export async function toggleChecklistItem(id: string): Promise<void> {
-  const db = getDB();
-  const item = await db.checklistItems.get(id);
-  if (item) {
-    await db.checklistItems.update(id, { completed: !item.completed });
-  }
+  // Fetch current value then flip
+  const { data: existing, error: fetchErr } = await supabase
+    .from("checklist_items")
+    .select("completed")
+    .eq("id", id)
+    .single();
+
+  if (fetchErr) throw new Error(fetchErr.message);
+
+  const { error } = await supabase
+    .from("checklist_items")
+    .update({ completed: !existing.completed, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteChecklistItem(id: string): Promise<void> {
-  const db = getDB();
-  await db.checklistItems.delete(id);
+  const { error } = await supabase.from("checklist_items").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 export async function resetChecklist(checklistId: string): Promise<void> {
-  const db = getDB();
-  const items = await db.checklistItems.where("checklistId").equals(checklistId).toArray();
-  await Promise.all(items.map((item) => db.checklistItems.update(item.id, { completed: false })));
+  const { error } = await supabase
+    .from("checklist_items")
+    .update({ completed: false, updated_at: new Date().toISOString() })
+    .eq("checklist_id", checklistId);
+
+  if (error) throw new Error(error.message);
 }

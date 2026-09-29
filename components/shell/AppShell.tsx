@@ -24,11 +24,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { editingIntention, setEditingIntention, currentUser, setCurrentUser } = useAppStore();
   const { places } = usePlaces();
 
+  const isAdmin = currentUser?.role === "admin";
+
   const navLinks = [
     { href: "/", label: "Home", icon: "favorite" },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin Dashboard", icon: "admin_panel_settings" }] : []),
     { href: "/places", label: "My Places", icon: "cottage" },
     { href: "/tasks", label: "Tasks & Rituals", icon: "spa" },
     { href: "/journey", label: "Journey & Transit", icon: "explore" },
+    { href: "/ai", label: "Nila AI ✨", icon: "auto_awesome" },
     { href: "/docs", label: "Guide & Docs", icon: "menu_book" },
     { href: "/settings", label: "Settings", icon: "tune" },
   ];
@@ -49,6 +53,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     .join("")
     .toUpperCase();
   const roleBadge = currentUser?.role === "admin" ? "Admin" : "Member";
+
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Dynamic time and time-of-day greeting
   const [timeString, setTimeString] = useState<string>("");
@@ -177,23 +183,68 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="font-label-md text-label-md text-on-surface font-semibold leading-tight">{displayName}</span>
                 <span className="font-label-sm text-label-sm text-secondary leading-tight">{roleBadge}</span>
               </div>
-              <button
-                onClick={handleLogout}
-                title="Sign out"
-                className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container ring-2 ring-secondary-container/60 shadow-[0_2px_6px_-1px_rgba(90,39,64,0.03)] font-bold text-sm hover:bg-error-container hover:text-on-error-container transition-colors overflow-hidden p-0"
-              >
-                {currentUser?.role === "admin" ? (
-                  <Image
-                    src="/logo.png"
-                    alt="Admin"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  initials
+              {/* Avatar dropdown trigger */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu((v) => !v)}
+                  title="Account options"
+                  className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container ring-2 ring-secondary-container/60 shadow-[0_2px_6px_-1px_rgba(90,39,64,0.03)] font-bold text-sm hover:ring-primary/40 transition-all overflow-hidden p-0"
+                >
+                  {currentUser?.role === "admin" ? (
+                    <Image
+                      src="/logo.png"
+                      alt="Admin"
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
+                </button>
+
+                {/* Dropdown menu */}
+                {showUserMenu && (
+                  <>
+                    {/* Backdrop */}
+                    <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+                    <div className="absolute right-0 top-11 z-50 w-56 bg-surface shadow-2xl border border-outline-variant/20 rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 origin-top-right">
+                      {/* Header with user info + close */}
+                      <div className="flex items-center justify-between px-4 py-3 bg-surface-container border-b border-outline-variant/20">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-bold text-on-surface truncate">{displayName}</span>
+                          <span className="text-xs text-secondary">{roleBadge}</span>
+                        </div>
+                        <button
+                          onClick={() => setShowUserMenu(false)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-secondary hover:bg-surface-container-high transition-colors flex-shrink-0 ml-2"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">close</span>
+                        </button>
+                      </div>
+                      {/* Menu items */}
+                      <div className="py-1">
+                        <Link
+                          href="/settings"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-on-surface hover:bg-surface-container transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[18px] text-secondary">settings</span>
+                          Settings
+                        </Link>
+                        <div className="h-px bg-outline-variant/20 mx-4 my-0.5" />
+                        <button
+                          onClick={() => { setShowUserMenu(false); handleLogout(); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-error hover:bg-error-container/40 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">logout</span>
+                          Sign out
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
-              </button>
+              </div>
             </div>
           </div>
         </header>

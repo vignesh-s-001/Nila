@@ -161,8 +161,8 @@ export async function processContextEvent(context: UserContext) {
   }
 
   // Evaluate Custom Rules
-  const db = await import("@/core/db").then((m) => m.getDB());
-  const placeRules = await db.rules.where("placeId").equals(targetPlace.id).toArray();
+  const { getRulesByPlace } = await import("@/services/database/rules");
+  const placeRules = await getRulesByPlace(targetPlace.id);
   const { evaluateRules } = await import("@/core/context/rulesEngine");
 
   const triggeredRules = evaluateRules(context, placeRules);
@@ -219,9 +219,9 @@ export async function processContextEvent(context: UserContext) {
 export async function triggerPresenceCheckForPlace(placeId: string): Promise<boolean> {
   const { useAppStore } = await import("@/store/appStore");
   const { isInsideGeofence } = await import("@/services/location/geofenceService");
-  const db = await import("@/core/db").then((m) => m.getDB());
+  const { getPlace } = await import("@/services/database/places");
 
-  const place = await db.places.get(placeId);
+  const place = await getPlace(placeId);
   if (!place) return false;
 
   const state = useAppStore.getState();

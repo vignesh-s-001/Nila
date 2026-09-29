@@ -1,6 +1,7 @@
 "use client";
 
-import { getDB } from "@/core/db";
+import { getSettings, setSetting } from "@/services/database/settings";
+import type { AppSettings } from "@/core/types";
 
 export interface CustomAudioSound {
   id: string; // e.g. "custom_1710000000000"
@@ -10,7 +11,9 @@ export interface CustomAudioSound {
   createdAt: string;
 }
 
-const CUSTOM_SOUNDS_KEY = "custom_audio_sounds";
+const CUSTOM_SOUNDS_KEY: keyof AppSettings = "alertSound"; // we'll store array as JSON in a separate settings key
+// We use a dedicated localStorage key for custom audio blobs since they can be large
+const LS_KEY = "nila_custom_audio_sounds";
 
 // In-memory cache for instant synchronous lookup
 let cachedCustomSounds: CustomAudioSound[] = [];
@@ -19,9 +22,8 @@ let isLoaded = false;
 export async function getCustomSounds(): Promise<CustomAudioSound[]> {
   if (typeof window === "undefined") return [];
   try {
-    const db = getDB();
-    const row = await db.settings.get(CUSTOM_SOUNDS_KEY);
-    const list = (row?.value as CustomAudioSound[]) ?? [];
+    const raw = localStorage.getItem(LS_KEY);
+    const list: CustomAudioSound[] = raw ? JSON.parse(raw) : [];
     cachedCustomSounds = list;
     isLoaded = true;
     return list;
@@ -59,8 +61,7 @@ export async function saveCustomAudioFile(file: File): Promise<CustomAudioSound>
         const updated = [...existing, newSound];
         cachedCustomSounds = updated;
 
-        const db = getDB();
-        await db.settings.put({ key: CUSTOM_SOUNDS_KEY, value: updated });
+        localStorage.setItem(LS_KEY, JSON.stringify(updated));
         resolve(newSound);
       } catch (err) {
         reject(err);
@@ -76,7 +77,5 @@ export async function deleteCustomAudioSound(id: string): Promise<void> {
   const existing = await getCustomSounds();
   const updated = existing.filter((s) => s.id !== id);
   cachedCustomSounds = updated;
-  const db = getDB();
-  await db.settings.put({ key: CUSTOM_SOUNDS_KEY, value: updated });
+  localStorage.setItem(LS_KEY, JSON.stringify(updated));
 }
-

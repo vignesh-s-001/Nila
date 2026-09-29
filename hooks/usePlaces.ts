@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { getDB } from "@/core/db";
+import { useState, useCallback, useEffect } from "react";
 import {
+  getPlaces,
   createPlace,
   updatePlace,
   deletePlace,
@@ -13,14 +12,22 @@ import type { Place } from "@/core/types";
 import toast from "react-hot-toast";
 
 export function usePlaces() {
+  const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const places: Place[] = useLiveQuery(
-    () => getDB().places.orderBy("createdAt").toArray(),
-    [],
-    []
-  ) ?? [];
+  const refresh = useCallback(async () => {
+    try {
+      const data = await getPlaces();
+      setPlaces(data);
+    } catch (err) {
+      console.error("usePlaces refresh error:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const addPlace = useCallback(async (input: CreatePlaceInput): Promise<Place | null> => {
     setLoading(true);
@@ -28,6 +35,7 @@ export function usePlaces() {
     try {
       const place = await createPlace(input);
       toast.success(`${place.emoji} ${place.name} created`);
+      await refresh();
       return place;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to create place";
@@ -37,7 +45,7 @@ export function usePlaces() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refresh]);
 
   const editPlace = useCallback(
     async (id: string, updates: Partial<Omit<Place, "id" | "createdAt">>): Promise<boolean> => {
@@ -45,6 +53,7 @@ export function usePlaces() {
       try {
         await updatePlace(id, updates);
         toast.success("Place updated");
+        await refresh();
         return true;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to update place";
@@ -54,7 +63,7 @@ export function usePlaces() {
         setLoading(false);
       }
     },
-    []
+    [refresh]
   );
 
   const removePlace = useCallback(async (id: string, name: string): Promise<boolean> => {
@@ -62,6 +71,7 @@ export function usePlaces() {
     try {
       await deletePlace(id);
       toast.success(`${name} deleted`);
+      await refresh();
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to delete place";
@@ -70,7 +80,7 @@ export function usePlaces() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refresh]);
 
-  return { places, loading, error, addPlace, editPlace, removePlace };
+  return { places, loading, error, addPlace, editPlace, removePlace, refresh };
 }

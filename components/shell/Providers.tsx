@@ -10,8 +10,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   // Load settings from DB on mount
   useEffect(() => {
+    const cachedTheme = localStorage.getItem("nila_theme") as "light" | "dark" | "system" | null;
+    if (cachedTheme) {
+      setSettings({ theme: cachedTheme });
+    }
+
     getSettings()
-      .then((s) => setSettings(s))
+      .then((s) => {
+        setSettings(s);
+        if (s.theme) {
+          localStorage.setItem("nila_theme", s.theme);
+        }
+      })
       .catch(console.error);
   }, [setSettings]);
 
@@ -21,10 +31,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
     root.classList.remove("light", "dark");
     if (settings.theme === "dark") {
       root.classList.add("dark");
-    } else if (settings.theme === "light") {
+    } else {
       root.classList.add("light");
     }
-    // "system" — let CSS media query handle it
+    if (settings.theme) {
+      localStorage.setItem("nila_theme", settings.theme);
+    }
   }, [settings.theme]);
 
   return (

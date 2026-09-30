@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import toast from "react-hot-toast";
+import ReactMarkdown from "react-markdown";
 import { useAppStore } from "@/store/appStore";
 import {
   getChatHistory,
@@ -29,12 +30,16 @@ export default function AIPage() {
   const [initLoading, setInitLoading] = useState(true);
   const [resolvedApiKey, setResolvedApiKey] = useState<string | null>(null);
   const [pastedImages, setPastedImages] = useState<{ base64: string; mimeType: string; preview: string }[]>([]);
+  const pastedImagesRef = useRef(pastedImages);
+  pastedImagesRef.current = pastedImages;
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userId = currentUser?.id ?? "";
   const isAdmin = currentUser?.role === "admin";
+  const isSpecial = currentUser?.role === "special";
+  const isPrivileged = isAdmin || isSpecial; // unlimited prompts
 
   // Load history + usage count on mount
   useEffect(() => {
@@ -48,7 +53,7 @@ export default function AIPage() {
         ]);
         setMessages(history);
         setPromptCount(count);
-        setLimitReached(count >= AI_PROMPT_LIMIT && !isAdmin);
+        setLimitReached(count >= AI_PROMPT_LIMIT && !isPrivileged);
         // Resolve API key: settings first, fallback to env var
         const key = s.aiApiKey || process.env.NEXT_PUBLIC_AI_API_KEY || null;
         setResolvedApiKey(key);
@@ -58,7 +63,7 @@ export default function AIPage() {
         setInitLoading(false);
       }
     })();
-  }, [userId, isAdmin]);
+  }, [userId, isPrivileged]);
 
   // Auto-scroll on new message
   useEffect(() => {
@@ -66,7 +71,7 @@ export default function AIPage() {
   }, [messages]);
 
   const handleSend = async () => {
-    if ((!input.trim() && pastedImages.length === 0) || loading || (limitReached && !isAdmin) || !userId) return;
+    if ((!input.trim() && pastedImages.length === 0) || loading || (limitReached && !isPrivileged) || !userId) return;
     if (!resolvedApiKey) return;
 
     const userText = input.trim();
@@ -90,7 +95,7 @@ export default function AIPage() {
       // Increment usage
       const newCount = await incrementPromptCount(userId);
       setPromptCount(newCount);
-      if (newCount >= AI_PROMPT_LIMIT && !isAdmin) setLimitReached(true);
+      if (newCount >= AI_PROMPT_LIMIT && !isPrivileged) setLimitReached(true);
 
       // Call Gemini (with optional images)
       const reply = await sendChatMessage(
@@ -132,21 +137,40 @@ export default function AIPage() {
   // ─── Image helpers ─────────────────────────────────────────
 
   const processImageFile = (file: File) => {
-    if (!file.type.startsWith("image/")) return;
+    // 1. Determine mime type and validate image
+    let mimeType = file.type;
+    if (!mimeType || !mimeType.startsWith("image/")) {
+      const ext = file.name?.split(".").pop()?.toLowerCase();
+      if (ext === "png") mimeType = "image/png";
+      else if (ext === "jpg" || ext === "jpeg") mimeType = "image/jpeg";
+      else if (ext === "webp") mimeType = "image/webp";
+      else if (ext === "gif") mimeType = "image/gif";
+      else if (ext === "bmp") mimeType = "image/bmp";
+      else if (ext === "svg") mimeType = "image/svg+xml";
+      else {
+        toast.error("Only image files can be attached");
+        return;
+      }
+    }
+
+    if (!isPrivileged && pastedImagesRef.current.length >= 5) {
+      toast.error("Maximum 5 images allowed");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
       if (!dataUrl) return;
       const base64 = dataUrl.split(",")[1];
-      
+
+      if (!isPrivileged && pastedImagesRef.current.length >= 5) {
+        toast.error("Maximum 5 images allowed");
+        return;
+      }
+
       setPastedImages((current) => {
-        // Prevent duplicate if the exact same image is already attached
-        if (current.some((img) => img.base64 === base64)) {
-          return current;
-        }
-        if (current.length >= 10) {
-          toast.error("You can only attach up to 10 images at once");
+        if (!isPrivileged && current.length >= 5) {
           return current;
         }
         return [...current, { base64, mimeType: file.type, preview: dataUrl }];
@@ -156,42 +180,99 @@ export default function AIPage() {
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
-    // If files are directly in clipboard (e.g. copied files)
-    const files = e.clipboardData.files;
-    if (files && files.length > 0) {
-      const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
-      if (imageFiles.length > 0) {
-        imageFiles.forEach((file) => processImageFile(file));
-        e.preventDefault();
-        return;
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) return;
+
+    // 1. Check files directly (e.g. copied from desktop/file explorer)
+    const files = Array.from(clipboardData.files || []);
+    const imageFiles = files.filter(
+      (f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(f.name)
+    );
+
+    if (imageFiles.length > 0) {
+      const filesToProcess = isPrivileged ? imageFiles : imageFiles.slice(0, 5);
+      filesToProcess.forEach((file) => processImageFile(file));
+      e.preventDefault();
+      return;
+    }
+
+    // 2. Check items (screenshots, copied images from browser)
+    const items = Array.from(clipboardData.items || []);
+    let hasImage = false;
+    for (const item of items) {
+      if (item.type.startsWith("image/") || item.kind === "file") {
+        const file = item.getAsFile();
+        if (file) {
+          processImageFile(file);
+          hasImage = true;
+        }
       }
     }
 
-    // Fallback for screenshot / snippet paste from items (take only the first representation)
-    const items = e.clipboardData.items;
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith("image/")) {
-        const file = items[i].getAsFile();
-        if (file) {
-          processImageFile(file);
+    if (hasImage) {
+      e.preventDefault();
+      return;
+    }
+
+    // 3. Fallback: check HTML for embedded base64 image
+    const html = clipboardData.getData("text/html");
+    if (html) {
+      const match = html.match(/<img[^>]+src=["'](data:image\/[^;]+;base64,[^"']+)["']/i);
+      if (match) {
+        const dataUrl = match[1];
+        const mimeType = dataUrl.split(";")[0].replace("data:", "");
+        const base64 = dataUrl.split(",")[1];
+
+        if (!isPrivileged && pastedImagesRef.current.length >= 5) {
+          toast.error("Maximum 5 images allowed");
           e.preventDefault();
-          break;
+          return;
         }
+
+        setPastedImages((current) => {
+          if (!isPrivileged && current.length >= 5) {
+            return current;
+          }
+          return [...current, { base64, mimeType, preview: dataUrl }];
+        });
+        e.preventDefault();
       }
     }
   };
 
+  // Global window paste listener so Ctrl+V works even if textarea is not focused
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      // Don't intercept if paste originated inside textarea or another input (it already has onPaste)
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+        return;
+      }
+      handlePaste(e as unknown as React.ClipboardEvent);
+    };
+
+    window.addEventListener("paste", handleGlobalPaste);
+    return () => window.removeEventListener("paste", handleGlobalPaste);
+  }, []);
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    Array.from(e.dataTransfer.files).forEach((file) => processImageFile(file));
+    const files = Array.from(e.dataTransfer.files);
+    const imageFiles = files.filter(
+      (f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(f.name)
+    );
+    if (files.length > 0 && imageFiles.length === 0) {
+      toast.error("Only images can be dropped here");
+      return;
+    }
+    const filesToProcess = isPrivileged ? imageFiles : imageFiles.slice(0, 5);
+    filesToProcess.forEach((file) => processImageFile(file));
   };
 
   if (initLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="material-symbols-outlined text-primary text-3xl animate-spin">
-          progress_activity
-        </span>
+        <div className="w-8 h-8 rounded-full border-3 border-primary/20 border-t-primary animate-spin" />
       </div>
     );
   }
@@ -214,10 +295,10 @@ export default function AIPage() {
         </div>
         <div className="flex items-center gap-2">
           {/* Prompt counter pill */}
-          {isAdmin ? (
+          {isPrivileged ? (
             <span className="text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-full border bg-primary/10 text-primary border-primary/20 shadow-sm flex items-center gap-1">
               <span className="material-symbols-outlined text-[14px]">all_inclusive</span>
-              Unlimited
+              {isAdmin ? "Admin" : "Special"}
             </span>
           ) : (
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
@@ -339,42 +420,18 @@ export default function AIPage() {
             )}
 
             <div
-              className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+              className={`max-w-[85%] md:max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm break-words ${
                 msg.role === "user"
                   ? "bg-primary text-on-primary rounded-tr-sm"
                   : "bg-surface-container-low text-on-surface border border-outline-variant/30 rounded-tl-sm"
               }`}
             >
               {msg.role === "assistant" ? (
-                <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-strong:font-bold prose-strong:text-on-surface">
-                  {msg.content.split("\n").map((line, i) => {
-                    const trimmed = line.trim();
-                    if (!trimmed) return <br key={i} />;
-
-                    // Bullet points
-                    if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
-                      const text = trimmed.slice(2);
-                      return (
-                        <div key={i} className="flex gap-1.5 my-0.5">
-                          <span className="text-primary mt-1 flex-shrink-0">•</span>
-                          <span dangerouslySetInnerHTML={{ __html: text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>") }} />
-                        </div>
-                      );
-                    }
-
-                    // Headings (##)
-                    if (trimmed.startsWith("## ")) {
-                      return <p key={i} className="font-bold text-base mt-2 mb-0.5" dangerouslySetInnerHTML={{ __html: trimmed.slice(3).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />;
-                    }
-
-                    // Regular paragraph with inline bold/italic
-                    return (
-                      <p key={i} className="my-0.5" dangerouslySetInnerHTML={{ __html: trimmed.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>") }} />
-                    );
-                  })}
+                <div className="prose prose-sm dark:prose-invert max-w-none break-words text-on-surface prose-p:my-1.5 prose-headings:font-bold prose-headings:text-on-surface prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-strong:font-bold prose-strong:text-on-surface prose-pre:bg-surface-container prose-pre:p-3 prose-pre:rounded-xl">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
               ) : (
-                <p className="whitespace-pre-wrap">{msg.content}</p>
+                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
               )}
               <p className={`text-[10px] mt-1 ${msg.role === "user" ? "text-on-primary/60 text-right" : "text-secondary/60"}`}>
                 {new Date(msg.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
@@ -416,7 +473,7 @@ export default function AIPage() {
 
           {/* Image preview — square boxes */}
           {pastedImages.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
+            <div className="mb-2 flex flex-wrap gap-2 items-center">
               {pastedImages.map((img, idx) => (
                 <div key={idx} className="relative inline-flex">
                   <button
@@ -438,6 +495,17 @@ export default function AIPage() {
                   </button>
                 </div>
               ))}
+              {(isPrivileged || pastedImages.length < 5) && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-20 h-20 rounded border-2 border-dashed border-outline-variant hover:border-primary/50 flex flex-col items-center justify-center text-secondary hover:text-primary transition-all gap-1 text-[11px] font-medium"
+                  title="Attach another image"
+                >
+                  <span className="material-symbols-outlined text-[20px]">add</span>
+                  <span>{isPrivileged ? `+ Add (${pastedImages.length})` : `${pastedImages.length}/5`}</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -505,14 +573,18 @@ export default function AIPage() {
               className="w-11 h-11 rounded-full bg-primary text-on-primary flex items-center justify-center shadow hover:opacity-90 transition-all active:scale-[0.95] disabled:opacity-40 flex-shrink-0"
             >
               {loading ? (
-                <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               ) : (
                 <span className="material-symbols-outlined text-[18px]">send</span>
               )}
             </button>
           </div>
           <p className="text-[10px] text-secondary/50 text-center mt-1.5">
-            {remaining > 0 ? `${remaining} of ${AI_PROMPT_LIMIT} messages remaining today • Paste or drag images` : ""}
+            {isPrivileged
+              ? "Unlimited prompts & images • Paste or drag images"
+              : remaining > 0
+              ? `${remaining} of ${AI_PROMPT_LIMIT} messages remaining today • Up to 5 images`
+              : ""}
           </p>
         </div>
       )}

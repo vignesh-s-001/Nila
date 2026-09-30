@@ -48,9 +48,10 @@ export default function SettingsPage() {
   }, []);
 
   const handleToggleTheme = async () => {
-    const newTheme = settings.theme === "dark" ? "light" : "dark";
-    setSettings({ theme: newTheme });
-    await setSetting("theme", newTheme);
+    // Cycle: light → dark → system → light
+    const next = settings.theme === "light" ? "dark" : settings.theme === "dark" ? "system" : "light";
+    setSettings({ theme: next });
+    await setSetting("theme", next);
   };
 
   const loadUsers = useCallback(async () => {
@@ -225,12 +226,28 @@ export default function SettingsPage() {
               Appearance
             </h2>
             <div className="p-space-lg bg-surface-container-lowest rounded-lg shadow-sm flex flex-col gap-space-md">
-              <Toggle
-                label="Dark Mode"
-                description="Switch between light and dark theme"
-                checked={settings.theme === "dark"}
-                onChange={handleToggleTheme}
-              />
+              <div className="flex flex-col gap-2">
+                <span className="font-label-md text-label-md text-on-surface font-semibold">Theme</span>
+                <span className="text-xs text-secondary">Choose how Nila looks</span>
+                <div className="flex gap-2 mt-1">
+                  {(["light", "dark", "system"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={async () => { setSettings({ theme: mode }); await setSetting("theme", mode); }}
+                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border transition-all text-xs font-semibold ${
+                        settings.theme === mode
+                          ? "bg-primary text-on-primary border-primary shadow-sm"
+                          : "bg-surface-container border-outline-variant text-on-surface hover:bg-surface-container-high"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {mode === "light" ? "light_mode" : mode === "dark" ? "dark_mode" : "brightness_auto"}
+                      </span>
+                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
 
@@ -400,7 +417,7 @@ export default function SettingsPage() {
                   className="h-9 px-4 rounded-xl bg-surface-container border border-outline-variant text-on-surface font-semibold text-xs flex items-center gap-1.5 hover:bg-surface-container-high transition-colors active:scale-95 disabled:opacity-50 flex-shrink-0"
                 >
                   {uploadingSound ? (
-                    <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                    <div className="w-4 h-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
                   ) : (
                     <span className="material-symbols-outlined text-[16px] text-primary">upload_file</span>
                   )}
@@ -512,7 +529,7 @@ export default function SettingsPage() {
                         className="h-10 px-4 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1.5 hover:opacity-90 active:scale-95 transition-all shadow-sm flex-shrink-0 disabled:opacity-60"
                       >
                         {savingKey ? (
-                          <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                          <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                         ) : (
                           <span className="material-symbols-outlined text-[16px]">save</span>
                         )}
@@ -547,7 +564,7 @@ export default function SettingsPage() {
 
                 {loadingUsers ? (
                   <div className="px-space-lg py-space-xl flex items-center justify-center text-secondary gap-2">
-                    <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <div className="w-5 h-5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
                     Loading…
                   </div>
                 ) : (

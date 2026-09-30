@@ -4,9 +4,12 @@ import type { Note } from "@/core/types";
 
 // ─── helpers ───────────────────────────────────────────────
 
+import { loadSession } from "@/services/auth/authService";
+
 function rowToNote(row: Record<string, unknown>): Note {
   return {
     id:        row.id as string,
+    userId:    row.user_id as string | undefined,
     placeId:   row.place_id as string | undefined,
     title:     row.title as string,
     content:   row.content as string,
@@ -21,6 +24,7 @@ export interface CreateNoteInput {
   content: string;
   placeId?: string;
   tags?: string[];
+  userId?: string;
 }
 
 // ─── CRUD ──────────────────────────────────────────────────
@@ -28,32 +32,63 @@ export interface CreateNoteInput {
 export async function createNote(input: CreateNoteInput): Promise<Note> {
   const now = new Date().toISOString();
   const id = uuidv4();
+  const currentUserId = input.userId ?? loadSession()?.id ?? null;
 
-  const { data, error } = await supabase
+  const payload: Record<string, unknown> = {
+    id,
+    place_id:   input.placeId ?? null,
+    title:      input.title,
+    content:    input.content,
+    tags:       input.tags ?? [],
+    created_at: now,
+    updated_at: now,
+  };
+
+  if (currentUserId) {
+    payload.user_id = currentUserId;
+  }
+
+  let { data, error } = await supabase
     .from("notes")
-    .insert({
-      id,
-      place_id:   input.placeId ?? null,
-      title:      input.title,
-      content:    input.content,
-      tags:       input.tags ?? [],
-      created_at: now,
-      updated_at: now,
-    })
+    .insert(payload)
     .select()
     .single();
+
+  if (error && (error.message.includes("user_id") || error.code === "PGRST204")) {
+    delete payload.user_id;
+    const retry = await supabase.from("notes").insert(payload).select().single();
+    if (retry.error) throw new Error(retry.error.message);
+    return rowToNote(retry.data);
+  }
 
   if (error) throw new Error(error.message);
   return rowToNote(data);
 }
 
-export async function getNotes(): Promise<Note[]> {
-  const { data, error } = await supabase
+export async function getNotes(userId?: string): Promise<Note[]> {
+  const currentUserId = userId ?? loadSession()?.id;
+
+  let query = supabase
     .from("notes")
     .select("*")
     .order("updated_at", { ascending: false });
 
-  if (error) throw new Error(error.message);
+  if (currentUserId) {
+    query = query.eq("user_id", currentUserId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (error.message.includes("user_id") || error.code === "PGRST204") {
+      const fallback = await supabase
+        .from("notes")
+        .select("*")
+        .order("updated_at", { ascending: false });
+      if (fallback.error) throw new Error(fallback.error.message);
+      return (fallback.data ?? []).map(rowToNote);
+    }
+    throw new Error(error.message);
+  }
   return (data ?? []).map(rowToNote);
 }
 

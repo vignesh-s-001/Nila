@@ -4,9 +4,12 @@ import type { Checklist, ChecklistItem } from "@/core/types";
 
 // ─── helpers ───────────────────────────────────────────────
 
+import { loadSession } from "@/services/auth/authService";
+
 function rowToChecklist(row: Record<string, unknown>): Checklist {
   return {
     id:        row.id as string,
+    userId:    row.user_id as string | undefined,
     placeId:   row.place_id as string | undefined,
     journeyId: row.journey_id as string | undefined,
     name:      row.name as string,
@@ -33,34 +36,66 @@ export async function createChecklist(input: {
   name: string;
   placeId?: string;
   journeyId?: string;
+  userId?: string;
 }): Promise<Checklist> {
   const now = new Date().toISOString();
   const id = uuidv4();
+  const currentUserId = input.userId ?? loadSession()?.id ?? null;
 
-  const { data, error } = await supabase
+  const payload: Record<string, unknown> = {
+    id,
+    place_id:   input.placeId ?? null,
+    journey_id: input.journeyId ?? null,
+    name:       input.name,
+    created_at: now,
+    updated_at: now,
+  };
+
+  if (currentUserId) {
+    payload.user_id = currentUserId;
+  }
+
+  let { data, error } = await supabase
     .from("checklists")
-    .insert({
-      id,
-      place_id:   input.placeId ?? null,
-      journey_id: input.journeyId ?? null,
-      name:       input.name,
-      created_at: now,
-      updated_at: now,
-    })
+    .insert(payload)
     .select()
     .single();
+
+  if (error && (error.message.includes("user_id") || error.code === "PGRST204")) {
+    delete payload.user_id;
+    const retry = await supabase.from("checklists").insert(payload).select().single();
+    if (retry.error) throw new Error(retry.error.message);
+    return rowToChecklist(retry.data);
+  }
 
   if (error) throw new Error(error.message);
   return rowToChecklist(data);
 }
 
-export async function getChecklists(): Promise<Checklist[]> {
-  const { data, error } = await supabase
+export async function getChecklists(userId?: string): Promise<Checklist[]> {
+  const currentUserId = userId ?? loadSession()?.id;
+
+  let query = supabase
     .from("checklists")
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) throw new Error(error.message);
+  if (currentUserId) {
+    query = query.eq("user_id", currentUserId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (error.message.includes("user_id") || error.code === "PGRST204") {
+      const fallback = await supabase
+        .from("checklists")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (fallback.error) throw new Error(fallback.error.message);
+      return (fallback.data ?? []).map(rowToChecklist);
+    }
+    throw new Error(error.message);
+  }
   return (data ?? []).map(rowToChecklist);
 }
 

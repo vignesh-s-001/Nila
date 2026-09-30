@@ -100,9 +100,8 @@ export async function clearChatHistory(userId: string): Promise<void> {
 
 // Models tried in order — falls back automatically on 503
 const GEMINI_MODELS = [
-  "gemini-3.6-flash",
   "gemini-3.5-flash-lite",
-  "gemini-3.7-flash",
+  "gemini-3.6-flash",
   "gemini-3.8-flash",
 ];
 
@@ -120,7 +119,10 @@ async function callGemini(
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemInstruction }] },
         contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 8192,
+        },
       }),
     }
   );
@@ -134,8 +136,8 @@ export async function sendChatMessage(
 ): Promise<string> {
   const systemInstruction = `You are Nila 🌙, a warm, mindful AI companion built into the Nila app.
 Your role is to help users reflect, plan their day, set intentions, and feel grounded.
-You speak gently, supportively, and concisely — like a caring friend, not a robotic assistant.
-Keep responses focused and mindful. Use soft, encouraging language.`;
+Provide complete, thorough, and detailed responses. Never truncate your thoughts or cut your answers short mid-sentence.
+Speak gently, supportively, and mindfully — like a caring friend. Format your response clearly using markdown headings and lists where helpful.`;
 
   // Build the user parts — include images if provided
   const userParts: object[] = [];
@@ -164,7 +166,13 @@ Keep responses focused and mindful. Use soft, encouraging language.`;
     if (res.ok) {
       const data = await res.json();
       console.log(`[Gemini] Responded via ${model}`);
-      return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "I'm not sure how to respond right now 🌙";
+      const parts = data.candidates?.[0]?.content?.parts ?? [];
+      const text = parts
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((p: any) => p.text)
+        .filter(Boolean)
+        .join("");
+      return text || "I'm not sure how to respond right now 🌙";
     }
 
     const errorText = await res.text();

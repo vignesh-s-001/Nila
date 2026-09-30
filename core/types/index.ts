@@ -15,6 +15,7 @@ export type PlaceColor =
 
 export interface Place {
   id: string;
+  userId?: string;
   name: string;
   emoji: string;
   color: PlaceColor;
@@ -50,6 +51,7 @@ export const ALERT_SOUNDS: AlertSoundOption[] = [
 
 export interface Task {
   id: string;
+  userId?: string;
   placeId?: string;
   title: string;
   description?: string;
@@ -71,6 +73,7 @@ export interface Task {
 
 export interface Note {
   id: string;
+  userId?: string;
   placeId?: string;
   title: string;
   content: string;
@@ -83,6 +86,7 @@ export interface Note {
 
 export interface Checklist {
   id: string;
+  userId?: string;
   placeId?: string;
   journeyId?: string;
   name: string;
@@ -144,6 +148,7 @@ export type TransportMode = "metro" | "bus" | "walk" | "auto" | "cab" | "train";
 
 export interface Journey {
   id: string;
+  userId?: string;
   /** Display name of the journey */
   name: string;
   status: JourneyStatus;
@@ -208,7 +213,7 @@ export interface NotificationHistory {
 
 // ─── Authentication ────────────────────────────────────────
 
-export type UserRole = "admin" | "user";
+export type UserRole = "admin" | "special" | "user";
 
 export interface AppUser {
   id: string;
@@ -263,7 +268,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notificationsEnabled: true,
   locationEnabled: true,
   locationUpdateInterval: 30,
-  theme: "system",
+  theme: "light",
   alertSound: "chime",
   aiEnabled: false,
   aiProvider: "openai",

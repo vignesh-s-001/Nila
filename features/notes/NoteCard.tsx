@@ -31,7 +31,7 @@ export function NoteCard({ note, onDelete, onEdit }: NoteCardProps) {
     <>
       <div
         id={`note-${note.id}`}
-        className="card p-4 cursor-pointer hover:shadow-[var(--shadow-md)] transition-shadow"
+        className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl p-4 cursor-pointer hover:bg-surface-container hover:shadow-md transition-all"
         onClick={() => setEditing(true)}
         role="button"
         tabIndex={0}
@@ -40,31 +40,24 @@ export function NoteCard({ note, onDelete, onEdit }: NoteCardProps) {
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            <FileText size={16} className="mt-0.5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
+            <FileText size={16} className="mt-0.5 flex-shrink-0 text-secondary" />
             <div className="flex-1 min-w-0">
-              <h4
-                className="text-sm font-semibold truncate"
-                style={{ color: "var(--text-primary)" }}
-              >
+              <h4 className="text-sm font-semibold truncate text-on-surface">
                 {note.title}
               </h4>
               {note.content && (
-                <p
-                  className="text-xs mt-1 line-clamp-2 leading-relaxed"
-                  style={{ color: "var(--text-secondary)" }}
-                >
+                <p className="text-xs mt-1 line-clamp-2 leading-relaxed text-secondary">
                   {note.content}
                 </p>
               )}
-              <p className="text-xs mt-2" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-xs mt-2 text-secondary/60">
                 {format(new Date(note.updatedAt), "MMM d, h:mm a")}
               </p>
             </div>
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(note.id); }}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--danger-light)] transition-colors flex-shrink-0"
-            style={{ color: "var(--text-tertiary)" }}
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-error-container/40 hover:text-on-error-container transition-colors text-secondary flex-shrink-0"
             aria-label={`Delete note "${note.title}"`}
           >
             <Trash2 size={13} />

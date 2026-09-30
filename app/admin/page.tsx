@@ -137,11 +137,12 @@ export default function AdminPage() {
     }
   };
 
-  const handleRoleChange = async (user: AdminUserRow, role: "admin" | "user") => {
+  const handleRoleChange = async (user: AdminUserRow, role: "admin" | "special" | "user") => {
     setActionLoading(user.id + "-role");
     try {
       await adminChangeRole(user.id, role);
-      toast.success(`Role updated to ${role}`);
+      const label = role === "special" ? "⭐ Special User" : role === "admin" ? "Admin" : "User";
+      toast.success(`${user.name} is now a ${label}`);
       await loadData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Role change failed");
@@ -242,7 +243,7 @@ export default function AdminPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-40 gap-2 text-secondary">
-            <span className="material-symbols-outlined text-2xl animate-spin">progress_activity</span>
+            <div className="w-5 h-5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
             <span className="text-sm">Loading users…</span>
           </div>
         ) : (
@@ -283,9 +284,11 @@ export default function AdminPage() {
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${
                           user.role === "admin"
                             ? "bg-primary/10 text-primary border-primary/20"
+                            : user.role === "special"
+                            ? "bg-tertiary-container text-on-tertiary-container border-tertiary-container/40"
                             : "bg-secondary-container text-on-secondary-container border-secondary-container/40"
                         }`}>
-                          {user.role === "admin" ? "ADMIN" : "USER"}
+                          {user.role === "admin" ? "ADMIN" : user.role === "special" ? "⭐ SPECIAL" : "USER"}
                         </span>
                       </div>
                       <span className="text-xs text-secondary truncate">{user.email}</span>
@@ -376,10 +379,11 @@ export default function AdminPage() {
                           <select
                             value={user.role}
                             disabled={actionLoading === user.id + "-role"}
-                            onChange={(e) => handleRoleChange(user, e.target.value as "admin" | "user")}
+                            onChange={(e) => handleRoleChange(user, e.target.value as "admin" | "special" | "user")}
                             className="h-9 px-3 rounded-xl bg-surface-container border border-outline-variant text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
                           >
                             <option value="user">User</option>
+                            <option value="special">⭐ Special User</option>
                             <option value="admin">Admin</option>
                           </select>
                         )}
@@ -391,7 +395,7 @@ export default function AdminPage() {
                           className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-tertiary-container/60 text-on-tertiary-container text-xs font-semibold hover:opacity-80 transition-all disabled:opacity-40 border border-tertiary-container/40"
                         >
                           {actionLoading === user.id + "-ai" ? (
-                            <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
                           ) : (
                             <span className="material-symbols-outlined text-[14px]">restart_alt</span>
                           )}
@@ -406,7 +410,7 @@ export default function AdminPage() {
                             className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-error-container/60 text-on-error-container text-xs font-semibold hover:opacity-80 transition-all disabled:opacity-40 border border-error-container/40 ml-auto"
                           >
                             {actionLoading === user.id + "-delete" ? (
-                              <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                              <div className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
                             ) : (
                               <span className="material-symbols-outlined text-[14px]">person_remove</span>
                             )}

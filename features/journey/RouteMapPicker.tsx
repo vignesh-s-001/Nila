@@ -13,9 +13,7 @@ export const RouteMapPicker = dynamic<RouteMapPickerLeafletProps>(
         className="w-full rounded-[14px] flex flex-col items-center justify-center gap-2 border border-outline-variant/40 bg-surface-container-low text-secondary"
         style={{ height: 280 }}
       >
-        <span className="material-symbols-outlined text-2xl animate-spin text-primary">
-          progress_activity
-        </span>
+        <div className="w-7 h-7 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
         <span className="text-xs font-medium">Loading interactive route map…</span>
       </div>
     ),

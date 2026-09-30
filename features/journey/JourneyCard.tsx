@@ -15,31 +15,32 @@ interface JourneyCardProps {
 
 export function JourneyCard({ journey, progress, onStart, onComplete, onCancel, onDelete }: JourneyCardProps) {
   const isActive = journey.status === "active";
-  const isCompleted = journey.status === "completed";
   const handleDelete = onDelete ?? onCancel;
 
   return (
-    <div className="card overflow-hidden transition-all duration-300">
+    <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl shadow-sm overflow-hidden transition-all duration-300">
       {/* Header */}
-      <div 
-        className="p-4 border-b border-[var(--border-muted)]"
-        style={{ 
-          background: isActive ? "var(--accent-light)" : "var(--bg-tertiary)",
-        }}
+      <div
+        className={`p-4 border-b border-outline-variant/30 ${
+          isActive ? "bg-primary/8" : "bg-surface-container/60"
+        }`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm"
-              style={{ background: isActive ? "var(--accent)" : "var(--bg-elevated)", color: isActive ? "white" : "var(--text-tertiary)" }}
+            <div
+              className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm ${
+                isActive
+                  ? "bg-primary text-on-primary"
+                  : "bg-surface-container-high text-secondary"
+              }`}
             >
               <Train size={20} />
             </div>
             <div>
-              <h3 className="text-base font-bold" style={{ color: isActive ? "var(--accent)" : "var(--text-primary)" }}>
+              <h3 className={`text-base font-bold ${isActive ? "text-primary" : "text-on-surface"}`}>
                 {journey.name}
               </h3>
-              <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
+              <p className="text-xs font-medium uppercase tracking-wider text-secondary">
                 {journey.status}
               </p>
             </div>
@@ -48,10 +49,7 @@ export function JourneyCard({ journey, progress, onStart, onComplete, onCancel, 
           {/* Delete icon button */}
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete();
-            }}
+            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-error-container hover:text-on-error-container transition-colors text-secondary"
             title="Delete trip"
             aria-label={`Delete ${journey.name}`}
@@ -66,31 +64,36 @@ export function JourneyCard({ journey, progress, onStart, onComplete, onCancel, 
         {/* Route visualization */}
         <div className="flex items-center gap-3 px-2">
           <div className="flex flex-col items-center gap-1">
-            <div className="w-3 h-3 rounded-full border-2" style={{ borderColor: "var(--accent)" }} />
-            <div className="w-0.5 h-8 bg-dashed" style={{ backgroundImage: "linear-gradient(to bottom, var(--border-default) 50%, transparent 50%)", backgroundSize: "100% 4px" }} />
-            <div className="w-3 h-3 rounded-full" style={{ background: "var(--danger)" }} />
+            <div className="w-3 h-3 rounded-full border-2 border-primary" />
+            <div
+              className="w-0.5 h-8"
+              style={{
+                backgroundImage: "linear-gradient(to bottom, var(--color-outline-variant) 50%, transparent 50%)",
+                backgroundSize: "100% 4px",
+              }}
+            />
+            <div className="w-3 h-3 rounded-full bg-error" />
           </div>
           <div className="flex flex-col justify-between py-0.5 h-14">
-            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{journey.startName}</p>
-            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{journey.destName}</p>
+            <p className="text-sm font-semibold text-on-surface">{journey.startName}</p>
+            <p className="text-sm font-semibold text-on-surface">{journey.destName}</p>
           </div>
         </div>
 
         {/* Live Progress */}
         {isActive && progress && (
-          <div className="bg-[var(--bg-tertiary)] rounded-[12px] p-3 flex flex-col gap-2 mt-2">
-            <div className="flex items-center justify-between text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          <div className="bg-surface-container rounded-xl p-3 flex flex-col gap-2 mt-2">
+            <div className="flex items-center justify-between text-xs font-medium text-secondary">
               <span>Distance remaining</span>
-              <span style={{ color: progress.approachingDestination ? "var(--danger)" : "var(--accent)" }}>
+              <span className={progress.approachingDestination ? "text-error" : "text-primary"}>
                 {(progress.distanceToDestination / 1000).toFixed(1)} km
               </span>
             </div>
-            <div className="h-2 w-full bg-[var(--border-default)] rounded-full overflow-hidden">
-               {/* Just a mockup progress bar */}
-               <div className="h-full bg-[var(--accent)] w-[60%]" />
+            <div className="h-2 w-full bg-outline-variant/30 rounded-full overflow-hidden">
+              <div className="h-full bg-primary w-[60%]" />
             </div>
             {progress.approachingDestination && (
-              <p className="text-xs font-bold text-center mt-1" style={{ color: "var(--danger)" }}>
+              <p className="text-xs font-bold text-center mt-1 text-error">
                 Approaching Destination! Get ready.
               </p>
             )}

@@ -144,7 +144,7 @@ export async function adminResetUserAI(userId: string): Promise<void> {
 
 export async function adminChangeRole(
   userId: string,
-  role: "admin" | "user"
+  role: "admin" | "special" | "user"
 ): Promise<void> {
   const { error } = await supabase
     .from("users")

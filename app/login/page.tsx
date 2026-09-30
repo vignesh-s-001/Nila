@@ -119,7 +119,7 @@ export default function LoginPage() {
               disabled={loading}
               className="h-11 rounded-xl bg-primary text-on-primary font-bold text-sm transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              {loading && <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>}
+              {loading && <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />}
               {loading ? "Signing in…" : "Sign In"}
             </button>
           </form>

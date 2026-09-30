@@ -10,12 +10,29 @@ import toast from "react-hot-toast";
 export function DemoModeSimulator() {
   const { demoMode, demoLocationName, setDemoMode } = useAppStore();
   const { places } = usePlaces();
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
+
+  // Read saved state on mount so it stays closed on refresh
+  useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nila_simulator_minimized");
+      if (saved !== null) {
+        setIsMinimized(saved === "true");
+      }
+    }
+  });
+
+  const toggleMinimized = (val: boolean) => {
+    setIsMinimized(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("nila_simulator_minimized", val ? "true" : "false");
+    }
+  };
 
   if (isMinimized) {
     return (
       <button
-        onClick={() => setIsMinimized(false)}
+        onClick={() => toggleMinimized(false)}
         className="fixed bottom-24 right-4 w-11 h-11 bg-surface-container-lowest border-2 border-primary/30 rounded-full flex items-center justify-center text-primary shadow-xl hover:scale-105 z-50 transition-all"
         title="Open Location Simulator"
         aria-label="Open Location Simulator"
@@ -55,7 +72,7 @@ export function DemoModeSimulator() {
           </span>
         </div>
         <button
-          onClick={() => setIsMinimized(true)}
+          onClick={() => toggleMinimized(true)}
           className="text-xs font-semibold px-2 py-1 rounded hover:bg-surface-container-high text-secondary hover:text-on-surface transition-colors"
         >
           Hide

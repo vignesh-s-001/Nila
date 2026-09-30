@@ -4,9 +4,12 @@ import type { Place, PlaceColor } from "@/core/types";
 
 // ─── helpers ───────────────────────────────────────────────
 
+import { loadSession } from "@/services/auth/authService";
+
 function rowToPlace(row: Record<string, unknown>): Place {
   return {
     id: row.id as string,
+    userId: row.user_id as string | undefined,
     name: row.name as string,
     emoji: row.emoji as string,
     color: row.color as PlaceColor,
@@ -27,6 +30,7 @@ export interface CreatePlaceInput {
   lng: number;
   radius: number;
   address?: string;
+  userId?: string;
 }
 
 // ─── CRUD ──────────────────────────────────────────────────
@@ -34,35 +38,66 @@ export interface CreatePlaceInput {
 export async function createPlace(input: CreatePlaceInput): Promise<Place> {
   const now = new Date().toISOString();
   const id = uuidv4();
+  const currentUserId = input.userId ?? loadSession()?.id ?? null;
 
-  const { data, error } = await supabase
+  const payload: Record<string, unknown> = {
+    id,
+    name: input.name,
+    emoji: input.emoji,
+    color: input.color,
+    lat: input.lat,
+    lng: input.lng,
+    radius: input.radius,
+    address: input.address ?? null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  if (currentUserId) {
+    payload.user_id = currentUserId;
+  }
+
+  let { data, error } = await supabase
     .from("places")
-    .insert({
-      id,
-      name: input.name,
-      emoji: input.emoji,
-      color: input.color,
-      lat: input.lat,
-      lng: input.lng,
-      radius: input.radius,
-      address: input.address ?? null,
-      created_at: now,
-      updated_at: now,
-    })
+    .insert(payload)
     .select()
     .single();
+
+  if (error && (error.message.includes("user_id") || error.code === "PGRST204")) {
+    delete payload.user_id;
+    const retry = await supabase.from("places").insert(payload).select().single();
+    if (retry.error) throw new Error(retry.error.message);
+    return rowToPlace(retry.data);
+  }
 
   if (error) throw new Error(error.message);
   return rowToPlace(data);
 }
 
-export async function getPlaces(): Promise<Place[]> {
-  const { data, error } = await supabase
+export async function getPlaces(userId?: string): Promise<Place[]> {
+  const currentUserId = userId ?? loadSession()?.id;
+
+  let query = supabase
     .from("places")
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) throw new Error(error.message);
+  if (currentUserId) {
+    query = query.eq("user_id", currentUserId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (error.message.includes("user_id") || error.code === "PGRST204") {
+      const fallback = await supabase
+        .from("places")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (fallback.error) throw new Error(fallback.error.message);
+      return (fallback.data ?? []).map(rowToPlace);
+    }
+    throw new Error(error.message);
+  }
   return (data ?? []).map(rowToPlace);
 }
 

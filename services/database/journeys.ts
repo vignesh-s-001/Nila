@@ -4,9 +4,12 @@ import type { Journey, JourneyStation, JourneyStatus } from "@/core/types";
 
 // ─── helpers ───────────────────────────────────────────────
 
+import { loadSession } from "@/services/auth/authService";
+
 function rowToJourney(row: Record<string, unknown>): Journey {
   return {
     id:                   row.id as string,
+    userId:               row.user_id as string | undefined,
     name:                 row.name as string,
     status:               row.status as JourneyStatus,
     transportMode:        row.transport_mode as Journey["transportMode"],
@@ -53,6 +56,7 @@ export interface CreateJourneyInput {
   destLat: number;
   destLng: number;
   alertDistance?: number;
+  userId?: string;
 }
 
 export interface CreateStationInput {
@@ -68,37 +72,68 @@ export interface CreateStationInput {
 export async function createJourney(input: CreateJourneyInput): Promise<Journey> {
   const now = new Date().toISOString();
   const id = uuidv4();
+  const currentUserId = input.userId ?? loadSession()?.id ?? null;
 
-  const { data, error } = await supabase
+  const payload: Record<string, unknown> = {
+    id,
+    name:           input.name,
+    status:         "planned",
+    start_name:     input.startName,
+    start_lat:      input.startLat,
+    start_lng:      input.startLng,
+    dest_name:      input.destName,
+    dest_lat:       input.destLat,
+    dest_lng:       input.destLng,
+    alert_distance: input.alertDistance ?? 1000,
+    created_at:     now,
+    updated_at:     now,
+  };
+
+  if (currentUserId) {
+    payload.user_id = currentUserId;
+  }
+
+  let { data, error } = await supabase
     .from("journeys")
-    .insert({
-      id,
-      name:           input.name,
-      status:         "planned",
-      start_name:     input.startName,
-      start_lat:      input.startLat,
-      start_lng:      input.startLng,
-      dest_name:      input.destName,
-      dest_lat:       input.destLat,
-      dest_lng:       input.destLng,
-      alert_distance: input.alertDistance ?? 1000,
-      created_at:     now,
-      updated_at:     now,
-    })
+    .insert(payload)
     .select()
     .single();
+
+  if (error && (error.message.includes("user_id") || error.code === "PGRST204")) {
+    delete payload.user_id;
+    const retry = await supabase.from("journeys").insert(payload).select().single();
+    if (retry.error) throw new Error(retry.error.message);
+    return rowToJourney(retry.data);
+  }
 
   if (error) throw new Error(error.message);
   return rowToJourney(data);
 }
 
-export async function getJourneys(): Promise<Journey[]> {
-  const { data, error } = await supabase
+export async function getJourneys(userId?: string): Promise<Journey[]> {
+  const currentUserId = userId ?? loadSession()?.id;
+
+  let query = supabase
     .from("journeys")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) throw new Error(error.message);
+  if (currentUserId) {
+    query = query.eq("user_id", currentUserId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (error.message.includes("user_id") || error.code === "PGRST204") {
+      const fallback = await supabase
+        .from("journeys")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (fallback.error) throw new Error(fallback.error.message);
+      return (fallback.data ?? []).map(rowToJourney);
+    }
+    throw new Error(error.message);
+  }
   return (data ?? []).map(rowToJourney);
 }
 

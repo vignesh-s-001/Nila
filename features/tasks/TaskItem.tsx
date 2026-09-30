@@ -3,7 +3,6 @@
 import { useState } from "react";
 import type { Task, Place } from "@/core/types";
 import { PRIORITY_CONFIG, TRIGGER_LABELS } from "@/core/constants";
-import { Badge } from "@/components/ui/Badge";
 import { format } from "date-fns";
 
 interface TaskItemProps {
@@ -32,8 +31,8 @@ export function TaskItem({
       className={[
         "group flex flex-col rounded-none p-3.5 sm:p-4 transition-all duration-200 border",
         task.completed
-          ? "opacity-60 bg-white/40 border-pink-100/40 line-through"
-          : "bg-white/90 hover:bg-white border-pink-100/70 shadow-[0_2px_10px_-2px_rgba(158,54,92,0.04)] hover:shadow-[0_4px_16px_-2px_rgba(158,54,92,0.08)] hover:-translate-y-0.5",
+          ? "opacity-60 bg-surface-container-lowest/60 border-outline-variant/30"
+          : "bg-surface-container-lowest hover:bg-surface-container border-outline-variant/50 shadow-sm hover:shadow-md hover:-translate-y-0.5",
       ].join(" ")}
     >
       <div className="flex items-start gap-3">
@@ -59,29 +58,29 @@ export function TaskItem({
             {task.title}
           </label>
 
-          {/* Meta row with cute petite pastel badges */}
+          {/* Meta badges */}
           <div className="flex items-center flex-wrap gap-1.5 mt-1.5">
             {/* Priority Badge */}
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold leading-tight ${
-              task.priority === "high" 
-                ? "bg-rose-100/80 text-rose-700 border border-rose-200/60" 
-                : task.priority === "medium" 
-                ? "bg-pink-100/70 text-pink-700 border border-pink-200/60" 
-                : "bg-stone-100 text-stone-600 border border-stone-200/60"
+              task.priority === "high"
+                ? "bg-error-container/60 text-on-error-container border border-error-container/40"
+                : task.priority === "medium"
+                ? "bg-primary/10 text-primary border border-primary/20"
+                : "bg-surface-container text-secondary border border-outline-variant/40"
             }`}>
               <span className="text-[9px]">✦</span>
               {priorityCfg.label}
             </span>
 
             {showPlace && place && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-amber-50/80 text-amber-800 border border-amber-200/60 shadow-2xs">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-tertiary-container/40 text-on-tertiary-container border border-tertiary-container/30">
                 <span>{place.emoji}</span>
                 <span>{place.name}</span>
               </span>
             )}
 
             {task.triggerType !== "NONE" && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-purple-50 text-purple-700 border border-purple-200/60 shadow-2xs">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-secondary-container/40 text-on-secondary-container border border-secondary-container/30">
                 <span className="material-symbols-outlined text-[12px]">
                   {task.triggerType === "ENTER" ? "near_me" : "logout"}
                 </span>
@@ -91,21 +90,21 @@ export function TaskItem({
 
             {/* Timing badges */}
             {task.triggerType !== "NONE" && task.timeStart && task.timeEnd && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-pink-50/70 text-primary border border-primary/20 shadow-2xs">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-primary/8 text-primary border border-primary/20">
                 <span className="material-symbols-outlined text-[12px]">schedule</span>
                 {task.timeStart} – {task.timeEnd}
               </span>
             )}
 
             {task.triggerType !== "NONE" && !task.timeStart && !task.timeEnd && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-pink-50/50 text-secondary border border-pink-100 shadow-2xs">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-surface-container text-secondary border border-outline-variant/40">
                 <span className="material-symbols-outlined text-[12px]">all_inclusive</span>
                 Any time
               </span>
             )}
 
             {task.dueDate && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-stone-50 text-secondary border border-stone-200 shadow-2xs">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight bg-surface-container text-secondary border border-outline-variant/40">
                 <span className="material-symbols-outlined text-[12px]">event</span>
                 {format(new Date(task.dueDate), "MMM d")}
                 {task.dueTime ? ` ${task.dueTime}` : ""}
@@ -119,7 +118,7 @@ export function TaskItem({
           {onEdit && (
             <button
               onClick={() => onEdit(task)}
-              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-pink-100/70 hover:text-primary transition-all text-secondary/70"
+              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 hover:text-primary transition-all text-secondary/70"
               aria-label={`Edit "${task.title}"`}
               title="Edit Intention"
             >
@@ -129,7 +128,7 @@ export function TaskItem({
           {task.description && (
             <button
               onClick={() => setExpanded((prev) => !prev)}
-              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-pink-100/70 hover:text-primary transition-all text-secondary/70"
+              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 hover:text-primary transition-all text-secondary/70"
               aria-label={expanded ? "Collapse" : "Expand"}
             >
               <span className="material-symbols-outlined text-[15px]">
@@ -139,7 +138,7 @@ export function TaskItem({
           )}
           <button
             onClick={() => onDelete(task.id)}
-            className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-rose-100 hover:text-rose-600 transition-all text-secondary/70"
+            className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-error-container hover:text-on-error-container transition-all text-secondary/70"
             aria-label={`Delete "${task.title}"`}
           >
             <span className="material-symbols-outlined text-[15px]">delete</span>
@@ -149,7 +148,7 @@ export function TaskItem({
 
       {/* Description */}
       {expanded && task.description && (
-        <p className="mt-2 ml-7 text-xs text-secondary leading-relaxed bg-pink-50/40 p-2 rounded-none border border-pink-100/50">
+        <p className="mt-2 ml-7 text-xs text-secondary leading-relaxed bg-surface-container p-2 rounded border border-outline-variant/30">
           {task.description}
         </p>
       )}

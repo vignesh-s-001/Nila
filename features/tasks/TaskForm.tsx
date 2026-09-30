@@ -478,7 +478,7 @@ export function TaskForm({
             className="h-8 px-3 rounded-lg bg-surface-container border border-outline-variant text-on-surface font-semibold text-xs flex items-center gap-1.5 hover:bg-surface-container-high transition-colors active:scale-95 disabled:opacity-50 flex-shrink-0"
           >
             {uploadingSound ? (
-              <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+              <div className="w-3.5 h-3.5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
             ) : (
               <span className="material-symbols-outlined text-[14px] text-primary">upload_file</span>
             )}

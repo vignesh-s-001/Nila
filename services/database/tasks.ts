@@ -4,9 +4,12 @@ import type { Task, TaskPriority, TriggerType, RepeatType, AlertSound } from "@/
 
 // ─── helpers ───────────────────────────────────────────────
 
+import { loadSession } from "@/services/auth/authService";
+
 function rowToTask(row: Record<string, unknown>): Task {
   return {
     id: row.id as string,
+    userId: row.user_id as string | undefined,
     placeId: row.place_id as string | undefined,
     title: row.title as string,
     description: row.description as string | undefined,
@@ -37,6 +40,7 @@ export interface CreateTaskInput {
   repeat?: RepeatType;
   triggerType?: TriggerType;
   alertSound?: AlertSound;
+  userId?: string;
 }
 
 // ─── CRUD ──────────────────────────────────────────────────
@@ -44,40 +48,71 @@ export interface CreateTaskInput {
 export async function createTask(input: CreateTaskInput): Promise<Task> {
   const now = new Date().toISOString();
   const id = uuidv4();
+  const currentUserId = input.userId ?? loadSession()?.id ?? null;
 
-  const { data, error } = await supabase
+  const payload: Record<string, unknown> = {
+    id,
+    place_id:     input.placeId ?? null,
+    title:        input.title,
+    description:  input.description ?? null,
+    priority:     input.priority ?? "medium",
+    due_date:     input.dueDate ?? null,
+    due_time:     input.dueTime ?? null,
+    time_start:   input.timeStart ?? null,
+    time_end:     input.timeEnd ?? null,
+    repeat:       input.repeat ?? "none",
+    completed:    false,
+    trigger_type: input.triggerType ?? "NONE",
+    alert_sound:  input.alertSound ?? "chime",
+    created_at:   now,
+    updated_at:   now,
+  };
+
+  if (currentUserId) {
+    payload.user_id = currentUserId;
+  }
+
+  let { data, error } = await supabase
     .from("tasks")
-    .insert({
-      id,
-      place_id:     input.placeId ?? null,
-      title:        input.title,
-      description:  input.description ?? null,
-      priority:     input.priority ?? "medium",
-      due_date:     input.dueDate ?? null,
-      due_time:     input.dueTime ?? null,
-      time_start:   input.timeStart ?? null,
-      time_end:     input.timeEnd ?? null,
-      repeat:       input.repeat ?? "none",
-      completed:    false,
-      trigger_type: input.triggerType ?? "NONE",
-      alert_sound:  input.alertSound ?? "chime",
-      created_at:   now,
-      updated_at:   now,
-    })
+    .insert(payload)
     .select()
     .single();
+
+  if (error && (error.message.includes("user_id") || error.code === "PGRST204")) {
+    delete payload.user_id;
+    const retry = await supabase.from("tasks").insert(payload).select().single();
+    if (retry.error) throw new Error(retry.error.message);
+    return rowToTask(retry.data);
+  }
 
   if (error) throw new Error(error.message);
   return rowToTask(data);
 }
 
-export async function getTasks(): Promise<Task[]> {
-  const { data, error } = await supabase
+export async function getTasks(userId?: string): Promise<Task[]> {
+  const currentUserId = userId ?? loadSession()?.id;
+
+  let query = supabase
     .from("tasks")
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) throw new Error(error.message);
+  if (currentUserId) {
+    query = query.eq("user_id", currentUserId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (error.message.includes("user_id") || error.code === "PGRST204") {
+      const fallback = await supabase
+        .from("tasks")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (fallback.error) throw new Error(fallback.error.message);
+      return (fallback.data ?? []).map(rowToTask);
+    }
+    throw new Error(error.message);
+  }
   return (data ?? []).map(rowToTask);
 }
 
@@ -92,14 +127,32 @@ export async function getTasksByPlace(placeId: string): Promise<Task[]> {
   return (data ?? []).map(rowToTask);
 }
 
-export async function getIncompleteTasks(): Promise<Task[]> {
-  const { data, error } = await supabase
+export async function getIncompleteTasks(userId?: string): Promise<Task[]> {
+  const currentUserId = userId ?? loadSession()?.id;
+
+  let query = supabase
     .from("tasks")
     .select("*")
     .eq("completed", false)
     .order("created_at", { ascending: true });
 
-  if (error) throw new Error(error.message);
+  if (currentUserId) {
+    query = query.eq("user_id", currentUserId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (error.message.includes("user_id") || error.code === "PGRST204") {
+      const fallback = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("completed", false)
+        .order("created_at", { ascending: true });
+      if (fallback.error) throw new Error(fallback.error.message);
+      return (fallback.data ?? []).map(rowToTask);
+    }
+    throw new Error(error.message);
+  }
   return (data ?? []).map(rowToTask);
 }
 

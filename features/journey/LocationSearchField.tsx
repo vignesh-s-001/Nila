@@ -145,9 +145,7 @@ export function LocationSearchField({
 
         <div className="absolute right-1.5 flex items-center gap-1">
           {loading && (
-            <span className="material-symbols-outlined text-[16px] text-primary animate-spin">
-              progress_activity
-            </span>
+            <div className="w-4 h-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin mr-1" />
           )}
 
           {value && !loading && (
